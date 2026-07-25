@@ -25,9 +25,9 @@ export circuit registerProfile(
   tier: Tier,
   policy: RevealPolicy
 ): [] {
-  const caller = callerId();
+  const caller = disclose(callerId());
   assert(!profiles.member(caller), "Profile already exists for this address");
-  profiles.insert(caller, commitment);
-  tiers.insert(caller, tier);
-  revealPolicies.insert(caller, policy);
+  profiles.insert(caller, disclose(commitment));
+  tiers.insert(caller, disclose(tier));
+  revealPolicies.insert(caller, disclose(policy));
 }

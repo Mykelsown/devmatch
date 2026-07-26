@@ -1,12 +1,37 @@
 {
   "name": "devmatch",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "compile": "compact compile contracts/dev_profile.compact contracts/managed/dev_profile",
+    "test": "NODE_OPTIONS='--experimental-vm-modules' vitest run",
+    "test:local": "MIDNIGHT_NETWORK=local yarn test",
+    "test:preprod": "MIDNIGHT_NETWORK=preprod yarn test",
+    "test:preview": "MIDNIGHT_NETWORK=preview yarn test"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC"
+  "dependencies": {
+    "@midnight-ntwrk/compact-runtime": "*",
+    "@midnight-ntwrk/midnight-js-contracts": "*",
+    "@midnight-ntwrk/midnight-js-http-client-proof-provider": "*",
+    "@midnight-ntwrk/midnight-js-indexer-public-data-provider": "*",
+    "@midnight-ntwrk/midnight-js-level-private-state-provider": "*",
+    "@midnight-ntwrk/midnight-js-network-id": "*",
+    "@midnight-ntwrk/midnight-js-node-zk-config-provider": "*",
+    "@midnight-ntwrk/midnight-js-protocol": "*",
+    "@midnight-ntwrk/midnight-js-types": "*",
+    "@midnight-ntwrk/midnight-js-utils": "*",
+    "@midnight-ntwrk/testkit-js": "*",
+    "@midnight-ntwrk/wallet-sdk": "*",
+    "pino": "*",
+    "pino-pretty": "*",
+    "rxjs": "*",
+    "ws": "*"
+  },
+  "devDependencies": {
+    "@types/node": "*",
+    "@types/ws": "*",
+    "@vitest/runner": "^4.1.10",
+    "typescript": "*",
+    "vitest": "^4.1.10"
+  }
 }

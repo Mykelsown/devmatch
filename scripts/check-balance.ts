@@ -10,8 +10,10 @@ const logger = pino({ level: 'warn', transport: { target: 'pino-pretty' } });
 const config = getConfig();
 setNetworkId(config.networkId);
 
-const mnemonic = process.env[`MIDNIGHT_${(process.env['MIDNIGHT_NETWORK'] ?? 'local').toUpperCase()}_MNEMONIC`];
-if (!mnemonic) throw new Error('MIDNIGHT_PREPROD_MNEMONIC not set');
+const network = process.env['MIDNIGHT_NETWORK'] ?? 'local';
+const upper = network.toUpperCase();
+const mnemonic = process.env[`MIDNIGHT_${upper}_MNEMONIC`];
+if (!mnemonic) throw new Error(`MIDNIGHT_${upper}_MNEMONIC not set`);
 
 const envConfig: EnvironmentConfiguration = { walletNetworkId: config.networkId, ...config };
 const wallet = await MidnightWalletProvider.build(logger, envConfig, {

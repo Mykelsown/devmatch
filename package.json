@@ -4,34 +4,41 @@
   "type": "module",
   "scripts": {
     "compile": "compact compile contracts/dev_profile.compact contracts/managed/dev_profile",
+    "deploy": "npx tsx src/deploy.ts",
+    "deploy:preview": "npx tsx src/deploy.ts --network preview",
+    "deploy:preprod": "npx tsx src/deploy.ts --network preprod",
+    "check-balance": "npx tsx src/check-balance.ts",
     "test": "NODE_OPTIONS='--experimental-vm-modules' vitest run",
     "test:local": "MIDNIGHT_NETWORK=local yarn test",
     "test:preprod": "MIDNIGHT_NETWORK=preprod yarn test",
     "test:preview": "MIDNIGHT_NETWORK=preview yarn test"
   },
   "dependencies": {
-    "@midnight-ntwrk/compact-runtime": "*",
-    "@midnight-ntwrk/midnight-js-contracts": "*",
-    "@midnight-ntwrk/midnight-js-http-client-proof-provider": "*",
-    "@midnight-ntwrk/midnight-js-indexer-public-data-provider": "*",
-    "@midnight-ntwrk/midnight-js-level-private-state-provider": "*",
-    "@midnight-ntwrk/midnight-js-network-id": "*",
-    "@midnight-ntwrk/midnight-js-node-zk-config-provider": "*",
-    "@midnight-ntwrk/midnight-js-protocol": "*",
-    "@midnight-ntwrk/midnight-js-types": "*",
-    "@midnight-ntwrk/midnight-js-utils": "*",
-    "@midnight-ntwrk/testkit-js": "*",
-    "@midnight-ntwrk/wallet-sdk": "*",
-    "pino": "*",
-    "pino-pretty": "*",
-    "rxjs": "*",
-    "ws": "*"
+    "@midnight-ntwrk/compact-runtime": "0.16.0",
+    "@midnight-ntwrk/midnight-js-contracts": "4.1.1",
+    "@midnight-ntwrk/midnight-js-http-client-proof-provider": "4.1.1",
+    "@midnight-ntwrk/midnight-js-indexer-public-data-provider": "4.1.1",
+    "@midnight-ntwrk/midnight-js-level-private-state-provider": "4.1.1",
+    "@midnight-ntwrk/midnight-js-network-id": "4.1.1",
+    "@midnight-ntwrk/midnight-js-node-zk-config-provider": "4.1.1",
+    "@midnight-ntwrk/midnight-js-protocol": "4.1.1",
+    "@midnight-ntwrk/midnight-js-types": "4.1.1",
+    "@midnight-ntwrk/midnight-js-utils": "4.1.1",
+    "@midnight-ntwrk/testkit-js": "4.1.1",
+    "@midnight-ntwrk/wallet-sdk": "1.2.0",
+    "pino": "^9.0.0",
+    "pino-pretty": "^11.0.0",
+    "rxjs": "^7.8.2",
+    "ws": "^8.21.1"
   },
   "devDependencies": {
-    "@types/node": "*",
-    "@types/ws": "*",
-    "@vitest/runner": "^4.1.10",
-    "typescript": "*",
+    "@types/node": "^22.0.0",
+    "@types/ws": "^8.18.1",
+    "tsx": "^4.23.1",
+    "typescript": "^6.0.3",
     "vitest": "^4.1.10"
+  },
+  "engines": {
+    "node": ">=22.0.0"
   }
 }

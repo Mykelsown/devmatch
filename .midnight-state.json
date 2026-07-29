@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "activeNetwork": "preview",
+  "wallets": {
+    "preview": {
+      "seed": "aaf2c6da94ceef802fa080d56a13c73f57b8e8750af3fc831028b4e974692bd8",
+      "createdAt": "2026-07-29T22:03:25.057Z"
+    }
+  },
+  "deployments": {}
+}

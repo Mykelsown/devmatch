@@ -85,7 +85,7 @@ const witnesses = {
 };
 
 const compiledContract = CompiledContract.make('dev_profile', DevMatch.Contract).pipe(
-  (c: any) => c.withWitnesses(witnesses),
+  CompiledContract.withWitnesses(witnesses),
   CompiledContract.withCompiledFileAssets(zkConfigPath),
 );
 

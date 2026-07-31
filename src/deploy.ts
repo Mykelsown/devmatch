@@ -6,17 +6,18 @@
  */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { resolveNetwork, recordDeployment } from './network';
-import { persistWalletState, unshieldedToken, type WalletContext } from './wallet-sdk';
+import { resolveNetwork, getOrCreateSeed, recordDeployment } from './network';
+import { createWallet, persistWalletState, unshieldedToken, type WalletContext } from './wallet-sdk';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { WebSocket } from 'ws';
 import * as Rx from 'rxjs';
-import { MidnightWalletProvider } from './wallet.js';
-import pino from 'pino';
 
 // Midnight SDK imports
+import { setNetworkId } from '@midnight-ntwrk/midnight-js-network-id';
 import { deployContract } from '@midnight-ntwrk/midnight-js-contracts';
 import { httpClientProofProvider } from '@midnight-ntwrk/midnight-js-http-client-proof-provider';
+import { FluentWalletBuilder } from '@midnight-ntwrk/testkit-js';
+import { LedgerParameters } from '@midnight-ntwrk/midnight-js-protocol/ledger';
 import { indexerPublicDataProvider } from '@midnight-ntwrk/midnight-js-indexer-public-data-provider';
 import { levelPrivateStateProvider } from '@midnight-ntwrk/midnight-js-level-private-state-provider';
 import { NodeZkConfigProvider } from '@midnight-ntwrk/midnight-js-node-zk-config-provider';
@@ -140,31 +141,41 @@ async function main() {
   console.log(`║  Deploy devmatch to ${network}`);
   console.log('╚══════════════════════════════════════════════════════════════╝\n');
 
+  // createWallet() (called below) also calls setNetworkId() internally, so
+  // this call is technically redundant once the wallet is created. It's
+  // kept here anyway as a defensive first line: it must be called before
+  // ANY wallet or contract operation, and having it fire immediately makes
+  // that requirement explicit rather than implicit in a helper function.
+  setNetworkId(networkConfig.networkId);
+
   console.log('─── Wallet setup ───────────────────────────────────────────────\n');
 
-  let walletCtx: WalletContext;
+  // Resolve the seed for this network. For 'undeployed' this is the fixed
+  // genesis seed. For public networks, prefer an explicit mnemonic
+  // (MIDNIGHT_<NETWORK>_MNEMONIC, from env or .env.<network>) if one is set,
+  // converting it to the hex master seed createWallet() expects; otherwise
+  // fall back to the locally persisted/auto-generated seed from
+  // getOrCreateSeed(). Either way, exactly one wallet-construction function
+  // runs below (createWallet), which is the only place setNetworkId() is
+  // called. A previous version of this script branched into a second,
+  // separate wallet-construction path for the mnemonic case that never
+  // called setNetworkId(), which is why deployContract() used to fail at
+  // the very end with "Network ID has not been configured" even after the
+  // wallet itself synced and funded correctly.
+  let seed: string;
 
   if (network === 'undeployed') {
-    // Local devnet: use the genesis seed.
-    console.log('  Creating wallet from genesis seed...');
-    const { createWallet } = await import('./wallet-sdk.js');
-    walletCtx = await createWallet({
-      network,
-      networkConfig,
-      seed: '0000000000000000000000000000000000000000000000000000000000000001',
-    });
+    seed = '0000000000000000000000000000000000000000000000000000000000000001';
+    console.log('  Using genesis seed for local devnet...');
   } else {
-    // Public network: load the mnemonic from .env.<network> file directly.
     const upper = network.toUpperCase();
     const envVarName = `MIDNIGHT_${upper}_MNEMONIC`;
     let mnemonic = process.env[envVarName];
 
-    // If not set in environment, try loading from the .env file.
     if (!mnemonic) {
       const envPath = path.resolve(process.cwd(), `.env.${network}`);
       if (fs.existsSync(envPath)) {
         const envContent = fs.readFileSync(envPath, 'utf-8').trim();
-        // Parse VAR="value" or VAR=value format
         const match = envContent.match(new RegExp(`^${envVarName}=["']?([^"'\\n]+)["']?`, 'm'));
         if (match) {
           mnemonic = match[1];
@@ -173,43 +184,35 @@ async function main() {
       }
     }
 
-    if (!mnemonic) {
-      console.error(`\n❌ ${envVarName} not set.`);
-      console.error(`   Set it in your environment or in .env.${network} file.\n`);
-      process.exit(1);
+    if (mnemonic) {
+      console.log('  Deriving wallet seed from mnemonic...');
+      const nodeWS = networkConfig.node.replace(/^http/, 'ws');
+      const built = await FluentWalletBuilder.forEnvironment({
+        walletNetworkId: networkConfig.networkId,
+        networkId: networkConfig.networkId,
+        indexer: networkConfig.indexer,
+        indexerWS: networkConfig.indexerWS,
+        node: networkConfig.node,
+        nodeWS,
+        faucet: networkConfig.faucet ?? '',
+        proofServer: networkConfig.proofServer,
+      })
+        .withDustOptions({
+          ledgerParams: LedgerParameters.initialParameters(),
+          additionalFeeOverhead: 1_000n,
+          feeBlocksMargin: 5,
+        })
+        .withMnemonic(mnemonic)
+        .buildWithoutStarting();
+      seed = (built as any).seeds.masterSeed;
+    } else {
+      console.log('  No mnemonic set, using locally persisted/auto-generated seed...');
+      seed = getOrCreateSeed(network);
     }
-
-    console.log('  Creating wallet from mnemonic...');
-
-    // Convert the HTTP node URL to a WebSocket URL for the wallet SDK.
-    const nodeWS = networkConfig.node.replace(/^http/, 'ws');
-    const envConfig: import('@midnight-ntwrk/testkit-js').EnvironmentConfiguration = {
-      walletNetworkId: networkConfig.networkId,
-      networkId: networkConfig.networkId,
-      indexer: networkConfig.indexer,
-      indexerWS: networkConfig.indexerWS,
-      node: networkConfig.node,
-      nodeWS,
-      faucet: networkConfig.faucet ?? '',
-      proofServer: networkConfig.proofServer,
-    };
-
-    const logger = pino({ level: 'warn', transport: { target: 'pino-pretty' } });
-    const mwProvider = await MidnightWalletProvider.build(logger, envConfig, {
-      kind: 'mnemonic',
-      value: mnemonic,
-    });
-
-    await mwProvider.start();
-
-    walletCtx = {
-      wallet: mwProvider.wallet,
-      shieldedSecretKeys: mwProvider.shieldedSecretKeys,
-      dustSecretKey: mwProvider.dustKey,
-      unshieldedKeystore: mwProvider.unshieldedKeystore,
-      restored: { shielded: false, unshielded: false, dust: false },
-    };
   }
+
+  console.log('  Creating wallet...');
+  const walletCtx: WalletContext = await createWallet({ network, networkConfig, seed });
 
   console.log('  Syncing with network...');
   console.log('  ℹ  This may take several minutes depending on network size.');

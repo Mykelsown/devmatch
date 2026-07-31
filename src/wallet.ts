@@ -48,6 +48,14 @@ export class MidnightWalletProvider implements MidnightProvider, WalletProvider 
     return this.zswapSecretKeys.encryptionPublicKey;
   }
 
+  get shieldedSecretKeys(): ZswapSecretKeys {
+    return this.zswapSecretKeys;
+  }
+
+  get dustKey(): DustSecretKey {
+    return this.dustSecretKey;
+  }
+
   async balanceTx(
     tx: UnboundTransaction,
     ttl: Date = ttlOneHour(),

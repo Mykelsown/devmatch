@@ -6,11 +6,13 @@
  */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { resolveNetwork, getOrCreateSeed, recordDeployment } from './network';
-import { createWallet, persistWalletState, unshieldedToken, type WalletContext } from './wallet-sdk';
+import { resolveNetwork, recordDeployment } from './network';
+import { persistWalletState, unshieldedToken, type WalletContext } from './wallet-sdk';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { WebSocket } from 'ws';
 import * as Rx from 'rxjs';
+import { MidnightWalletProvider } from './wallet.js';
+import pino from 'pino';
 
 // Midnight SDK imports
 import { deployContract } from '@midnight-ntwrk/midnight-js-contracts';
@@ -33,7 +35,6 @@ const PRIVATE_STATE_ID = 'devMatchPrivateState';
 // 'undeployed' (local devnet). Switch networks with: npm run network <name>
 
 const { network, config: networkConfig } = resolveNetwork();
-const SEED = getOrCreateSeed(network);
 
 // ─── Proof server readiness ────────────────────────────────────────────────────
 //
@@ -139,14 +140,75 @@ async function main() {
   console.log(`║  Deploy devmatch to ${network}`);
   console.log('╚══════════════════════════════════════════════════════════════╝\n');
 
-  const seed = SEED;
-
   console.log('─── Wallet setup ───────────────────────────────────────────────\n');
-  console.log('  Creating wallet...');
-  const walletCtx = await createWallet({ network, networkConfig, seed });
-  const restoredCount = Object.values(walletCtx.restored).filter(Boolean).length;
-  if (restoredCount > 0) {
-    console.log(`  Restored ${restoredCount}/3 child wallets from .midnight-wallet-state — sync will resume from saved point.`);
+
+  let walletCtx: WalletContext;
+
+  if (network === 'undeployed') {
+    // Local devnet: use the genesis seed.
+    console.log('  Creating wallet from genesis seed...');
+    const { createWallet } = await import('./wallet-sdk.js');
+    walletCtx = await createWallet({
+      network,
+      networkConfig,
+      seed: '0000000000000000000000000000000000000000000000000000000000000001',
+    });
+  } else {
+    // Public network: load the mnemonic from .env.<network> file directly.
+    const upper = network.toUpperCase();
+    const envVarName = `MIDNIGHT_${upper}_MNEMONIC`;
+    let mnemonic = process.env[envVarName];
+
+    // If not set in environment, try loading from the .env file.
+    if (!mnemonic) {
+      const envPath = path.resolve(process.cwd(), `.env.${network}`);
+      if (fs.existsSync(envPath)) {
+        const envContent = fs.readFileSync(envPath, 'utf-8').trim();
+        // Parse VAR="value" or VAR=value format
+        const match = envContent.match(new RegExp(`^${envVarName}=["']?([^"'\\n]+)["']?`, 'm'));
+        if (match) {
+          mnemonic = match[1];
+          console.log(`  Loaded ${envVarName} from .env.${network}`);
+        }
+      }
+    }
+
+    if (!mnemonic) {
+      console.error(`\n❌ ${envVarName} not set.`);
+      console.error(`   Set it in your environment or in .env.${network} file.\n`);
+      process.exit(1);
+    }
+
+    console.log('  Creating wallet from mnemonic...');
+
+    // Convert the HTTP node URL to a WebSocket URL for the wallet SDK.
+    const nodeWS = networkConfig.node.replace(/^http/, 'ws');
+    const envConfig: import('@midnight-ntwrk/testkit-js').EnvironmentConfiguration = {
+      walletNetworkId: networkConfig.networkId,
+      networkId: networkConfig.networkId,
+      indexer: networkConfig.indexer,
+      indexerWS: networkConfig.indexerWS,
+      node: networkConfig.node,
+      nodeWS,
+      faucet: networkConfig.faucet ?? '',
+      proofServer: networkConfig.proofServer,
+    };
+
+    const logger = pino({ level: 'warn', transport: { target: 'pino-pretty' } });
+    const mwProvider = await MidnightWalletProvider.build(logger, envConfig, {
+      kind: 'mnemonic',
+      value: mnemonic,
+    });
+
+    await mwProvider.start();
+
+    walletCtx = {
+      wallet: mwProvider.wallet,
+      shieldedSecretKeys: mwProvider.shieldedSecretKeys,
+      dustSecretKey: mwProvider.dustKey,
+      unshieldedKeystore: mwProvider.unshieldedKeystore,
+      restored: { shielded: false, unshielded: false, dust: false },
+    };
   }
 
   console.log('  Syncing with network...');

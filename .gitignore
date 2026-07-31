@@ -9,19 +9,23 @@ node_modules/
 attester/node_modules/
 frontend/node_modules/
 
-# Environment variables
+# Environment variables (contain mnemonics/private keys - NEVER commit)
 .env
 attester/.env
 frontend/.env
+.env.*
 
 # Build outputs
 dist/
 build/
+frontend/dist/
+frontend/public/zk/
+frontend/src/contract/
 
 # Logs
+logs/
 *.log
 
 # OS
 .DS_Store
 Thumbs.db
-.env.*

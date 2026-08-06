@@ -21,6 +21,10 @@ Built for the [Midnight Full Moon Builder Program](https://www.risein.com/progra
 
 Deployed on **2026-07-31** with `npm run deploy:preview`. The address is also recorded in `.midnight-state.json` (I gitignored this because it contains wallet seeds).
 
+Proof of deployment (Preview):
+
+![DevMatch contract deployed to Midnight Preview](assets/deploy-proof.png)
+
 ---
 
 ## What This Does

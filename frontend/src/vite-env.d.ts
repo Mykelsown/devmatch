@@ -11,6 +11,10 @@ interface ImportMetaEnv {
   readonly VITE_INDEXER_WS_URL?: string;
   /** Proof server URL (default http://127.0.0.1:6300) */
   readonly VITE_PROOF_SERVER_URL?: string;
+  /** Proof mode: 'wallet' (default, in-wallet) or 'http' (proof server) */
+  readonly VITE_PROOF_MODE?: 'wallet' | 'http';
+  /** Attester service base URL (default http://localhost:3001) */
+  readonly VITE_ATTESTER_URL?: string;
 }
 
 interface ImportMeta {

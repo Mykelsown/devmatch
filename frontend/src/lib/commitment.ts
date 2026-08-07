@@ -33,7 +33,7 @@ export async function hashProfileToCommitment(input: {
   hours: number;
 }): Promise<Uint8Array> {
   const data = canonicalProfileBytes(input);
-  const digest = await crypto.subtle.digest('SHA-256', data);
+  const digest = await crypto.subtle.digest('SHA-256', data as BufferSource);
   return new Uint8Array(digest);
 }
 

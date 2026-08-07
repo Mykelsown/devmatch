@@ -26,8 +26,22 @@ export const INDEXER_WS_URL: string =
 export const PROOF_SERVER_URL: string =
   import.meta.env.VITE_PROOF_SERVER_URL ?? 'http://127.0.0.1:6300';
 
+/**
+ * How proofs are generated: 'wallet' (default, in-wallet proving via Lace) or
+ * 'http' (local docker proof server, matches the Level 1 deploy flow).
+ */
+export const PROOF_MODE: 'wallet' | 'http' =
+  import.meta.env.VITE_PROOF_MODE === 'http' ? 'http' : 'wallet';
+
 /** Where the ZK artifacts (zkir + keys) are served from (Vite public dir). */
 export const ZK_BASE_URL: string = '/zk';
+
+/**
+ * Attester service base URL (Level 3 prep). The GitHub OAuth button redirects
+ * here; the returned `attestedProfileHash` is stored client-side.
+ */
+export const ATTESTER_URL: string =
+  import.meta.env.VITE_ATTESTER_URL ?? 'http://localhost:3001';
 
 /**
  * Private state password for the browser private state store.

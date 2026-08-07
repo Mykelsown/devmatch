@@ -1,11 +1,19 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import wasm from 'vite-plugin-wasm';
 
 // Vite config for the DevMatch frontend.
 // The compiled contract + ZK assets are copied into src/generated and
 // public/zk by the `prepare:contract` script (auto-run pre-dev/pre-build).
+//
+// The Midnight onchain runtime ships ESM modules that `import` a .wasm file
+// directly, which plain Vite cannot bundle — `vite-plugin-wasm` is the
+// standard fix used by Midnight.js browser examples. The build target es2022
+// emits top-level await natively, so no top-level-await transform plugin is
+// needed (vite-plugin-top-level-await also pulls in @swc/core's native
+// binary, which crashed this machine with SIGBUS).
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), wasm()],
   build: {
     target: 'es2022',
   },

@@ -2,23 +2,32 @@
  * Bridges the Lace dApp connector API (`ConnectedAPI`) to the
  * midnight-js `WalletProvider` and `MidnightProvider` interfaces.
  *
- * Lace's ConnectedAPI works with *serialized* transactions (strings), while
+ * Lace's ConnectedAPI works with *serialized* transactions (hex strings), while
  * midnight-js works with ledger transaction objects. This adapter:
- *   - exposes the wallet's shielded coin/encryption public keys,
+ *   - exposes the wallet's shielded coin/encryption public keys (cached at
+ *     connect time — the 4.1.x `WalletProvider` interface requires synchronous
+ *     key getters, so we cannot resolve them lazily from a Promise),
  *   - delegates balancing to the wallet (`balanceUnsealedTransaction`),
  *   - delegates submission to the wallet (`submitTransaction`).
  *
- * NOTE: the exact key-string and tx serialization formats are version
- * sensitive. The tx serialization helpers at the bottom are centralized here
- * so a format tweak is a one-line change.
+ * Serialization format: Lace expects hex strings of the serialized ledger
+ * `Transaction`. `balanceUnsealedTransaction` takes
+ * `Transaction<SignatureEnabled, Proof, PreBinding>` (an unbound tx, exactly
+ * what midnight-js passes to `balanceTx`) and returns
+ * `Transaction<SignatureEnabled, Proof, Binding>` (a finalized tx, exactly
+ * what the `FinalizedTransaction` type expects back).
  */
+import {
+  Transaction,
+  type FinalizedTransaction,
+} from '@midnight-ntwrk/midnight-js-protocol/ledger';
 import type {
   WalletProvider,
   MidnightProvider,
   UnboundTransaction,
-  FinalizedTransaction,
 } from '@midnight-ntwrk/midnight-js-types';
 import type { ConnectedAPI } from '@midnight-ntwrk/dapp-connector-api';
+import type { WalletSnapshot } from './lace';
 
 /** Hex-encode bytes. */
 function bytesToHex(bytes: Uint8Array): string {
@@ -38,65 +47,50 @@ function hexToBytes(hex: string): Uint8Array {
 }
 
 /**
- * Serialize an unbound transaction for the wallet API.
- * Uses the ledger object's own `serialize()` (Uint8Array) and hex-encodes it.
- */
-function serializeUnbound(tx: UnboundTransaction): string {
-  const raw = (tx as unknown as { serialize(): Uint8Array }).serialize();
-  return bytesToHex(raw);
-}
-
-/**
- * Deserialize the wallet's balanced transaction back into a
- * midnight-js `FinalizedTransaction` object.
- */
-function deserializeFinalized(serialized: string): FinalizedTransaction {
-  const { Transaction } = {} as {
-    Transaction: {
-      deserialize(raw: Uint8Array): FinalizedTransaction;
-    };
-  };
-  return Transaction.deserialize(hexToBytes(serialized));
-}
-
-/**
  * Build the midnight-js wallet + midnight providers from a connected Lace API.
+ *
+ * @param api The connected Lace session.
+ * @param snapshot Keys and balances captured once at connect time. The
+ *   shielded coin/encryption keys MUST be cached here: the `WalletProvider`
+ *   interface in midnight-js 4.1.x declares `getCoinPublicKey` /
+ *   `getEncryptionPublicKey` as synchronous, while Lace only exposes them via
+ *   the async `getShieldedAddresses()`.
  */
-export function createWalletProviders(api: ConnectedAPI): {
+export function createWalletProviders(
+  api: ConnectedAPI,
+  snapshot: WalletSnapshot,
+): {
   walletProvider: WalletProvider;
   midnightProvider: MidnightProvider;
 } {
   const walletProvider: WalletProvider = {
-    // Lace exposes the shielded keys as bech32m strings via getShieldedAddresses.
-    // These are resolved lazily so the wallet provider stays stateless.
-    getCoinPublicKey: () =>
-      api.getShieldedAddresses().then((s) => s.shieldedCoinPublicKey) as unknown as WalletProvider extends {
-        getCoinPublicKey(): infer R;
-      }
-        ? R
-        : never,
-    getEncryptionPublicKey: () =>
-      api.getShieldedAddresses().then((s) => s.shieldedEncryptionPublicKey) as unknown as WalletProvider extends {
-        getEncryptionPublicKey(): infer R;
-      }
-        ? R
-        : never,
-    balanceTx: async (tx, ttl) => {
-      const serialized = serializeUnbound(tx);
-      const { tx: balancedSerialized } = await api.balanceUnsealedTransaction(serialized, {
-        ...(ttl ? { ttl } : {}),
-      });
-      return deserializeFinalized(balancedSerialized);
+    // Synchronous key getters backed by the connect-time snapshot.
+    getCoinPublicKey: () => snapshot.coinPublicKey,
+    getEncryptionPublicKey: () => snapshot.encryptionPublicKey,
+    balanceTx: async (tx: UnboundTransaction) => {
+      const serialized = bytesToHex(tx.serialize());
+      const { tx: balancedSerialized } = await api.balanceUnsealedTransaction(
+        serialized,
+        { payFees: true },
+      );
+      // Ledger markers: 'signature' / 'proof' / 'binding' identify the
+      // SignatureEnabled / Proof / Binding variants the wallet returned.
+      return Transaction.deserialize(
+        'signature',
+        'proof',
+        'binding',
+        hexToBytes(balancedSerialized),
+      ) as FinalizedTransaction;
     },
   };
 
   const midnightProvider: MidnightProvider = {
-    submitTx: async (tx) => {
-      const raw = (tx as unknown as { serialize(): Uint8Array }).serialize();
-      await api.submitTransaction(bytesToHex(raw));
-      // The wallet API does not return the tx id; derive one from the hash
-      // preimage is not possible client-side, so we surface a generic id.
-      return '' as unknown as Awaited<ReturnType<MidnightProvider['submitTx']>>;
+    submitTx: async (tx: FinalizedTransaction) => {
+      await api.submitTransaction(bytesToHex(tx.serialize()));
+      // The wallet API returns void; derive a watchable id from the tx itself
+      // so the framework's `watchForTxData(txId)` can track finalization.
+      const ids = tx.identifiers();
+      return ids[0] ?? tx.transactionHash();
     },
   };
 

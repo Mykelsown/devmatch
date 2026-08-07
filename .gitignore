@@ -21,6 +21,9 @@ build/
 frontend/dist/
 frontend/public/zk/
 frontend/src/contract/
+frontend/src/generated/
+frontend/tsconfig.tsbuildinfo
+frontend/tsconfig.*.tsbuildinfo
 
 # Logs
 logs/

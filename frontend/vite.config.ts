@@ -24,5 +24,14 @@ export default defineConfig({
       '@midnight-ntwrk/compact-runtime',
       '@midnight-ntwrk/midnight-js-protocol',
     ],
+    include: [
+      // compact-runtime's raw ESM entry imports object-inspect (a CommonJS
+      // package). Because compact-runtime is excluded from pre-bundling, that
+      // bare import would otherwise be served raw to the browser, which then
+      // fails with "doesn't provide an export named: 'default'". Forcing it
+      // into the pre-bundler gives esbuild the chance to emit the interop
+      // default export the browser needs.
+      'object-inspect',
+    ],
   },
 });

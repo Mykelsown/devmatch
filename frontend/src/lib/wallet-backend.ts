@@ -12,11 +12,10 @@
  *     existing `lib/lace`, `lib/providers`, `lib/contract` and
  *     `lib/commitment` wiring.
  *
- * `pickBackend()` auto-selects the real backend when Lace is installed and
+ * `resolveBackend()` auto-selects the real backend when Lace is installed and
  * falls back to the demo wallet otherwise; the connect modal lets the user
  * override that choice.
  */
-import type { ConnectedAPI } from '@midnight-ntwrk/dapp-connector-api';
 import {
   Tier as ContractTier,
   RevealPolicy as ContractRevealPolicy,
@@ -122,7 +121,8 @@ export class MidnightWalletBackend implements WalletBackend {
   readonly mode = 'midnight' as const;
   readonly label = 'Lace · Midnight';
 
-  private api: ConnectedAPI | null = null;
+  // The ConnectedAPI is only needed during connect() — the contract instance
+  // below is what registerProfile talks to.
   private contract: DevMatchContract | null = null;
 
   isAvailable(): boolean {
@@ -139,7 +139,6 @@ export class MidnightWalletBackend implements WalletBackend {
     const secret = await deriveLocalSecretKey(snapshot.address);
     const contract = await connectToDeployedContract(providers, secret);
 
-    this.api = api;
     this.contract = contract;
 
     const total = Object.values(snapshot.balances).reduce((a, b) => a + b, 0n);
@@ -153,7 +152,6 @@ export class MidnightWalletBackend implements WalletBackend {
   }
 
   async disconnect(): Promise<void> {
-    this.api = null;
     this.contract = null;
   }
 

@@ -7,7 +7,6 @@
  */
 import type {
   DeveloperProfile,
-  LandingTicket,
   ProfileInput,
   Requirement,
   RevealPolicy,
@@ -286,6 +285,8 @@ export const HOW_IT_WORKS: {
 ];
 
 export const SEED_REWARDS: RewardsState = {
+  // balance is recomputed by AppContext (REWARDS_BASE + completed deltas);
+  // this initial value is never read.
   balance: 1250,
   activities: [
     {

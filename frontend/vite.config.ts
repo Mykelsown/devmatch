@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import wasm from 'vite-plugin-wasm';
+import tailwindcss from '@tailwindcss/vite';
 
 // Vite config for the DevMatch frontend.
 // The compiled contract + ZK assets are copied into src/generated and
@@ -13,7 +14,7 @@ import wasm from 'vite-plugin-wasm';
 // needed (vite-plugin-top-level-await also pulls in @swc/core's native
 // binary, which crashed this machine with SIGBUS).
 export default defineConfig({
-  plugins: [react(), wasm()],
+  plugins: [react(), tailwindcss(), wasm()],
   build: {
     target: 'es2022',
   },

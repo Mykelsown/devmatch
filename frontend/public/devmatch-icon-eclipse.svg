@@ -1,0 +1,24 @@
+<svg width="256" height="256" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" role="img">
+  <title>DevMatch icon</title>
+  <desc>A solar eclipse where a warm sun disc and a cool moon disc merge, symbolizing two developers matched into one</desc>
+  <defs>
+    <linearGradient id="sun" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFD27A"/>
+      <stop offset="100%" stop-color="#F2A93C"/>
+    </linearGradient>
+    <linearGradient id="moon" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#151A45"/>
+      <stop offset="100%" stop-color="#0B0F2E"/>
+    </linearGradient>
+    <radialGradient id="corona" cx="50%" cy="50%" r="50%">
+      <stop offset="80%" stop-color="#7DE8D0" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#7DE8D0" stop-opacity="0.55"/>
+    </radialGradient>
+  </defs>
+
+  <rect x="0" y="0" width="256" height="256" rx="56" fill="#080B22"/>
+
+  <circle cx="128" cy="128" r="82" fill="url(#corona)"/>
+  <circle cx="128" cy="128" r="70" fill="url(#sun)"/>
+  <circle cx="152" cy="128" r="70" fill="url(#moon)"/>
+</svg>

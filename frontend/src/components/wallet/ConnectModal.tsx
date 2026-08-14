@@ -5,7 +5,7 @@
  * Backend choice: the demo wallet works anywhere; Lace · Midnight is offered
  * when the extension is installed and drives the real on-chain flow.
  */
-import { useEffect } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { Check, Loader2, Laptop, Wallet, X, BadgeCheck } from 'lucide-react';
 import { useApp } from '../../state/AppContext';
 import { GlowButton, GhostButton } from '../ui/primitives';
@@ -41,7 +41,7 @@ export function ConnectModal() {
     desc: string;
     available: boolean;
     note?: string;
-    icon: React.ReactNode;
+    icon: ReactNode;
   }[] = [
     {
       key: 'mock',

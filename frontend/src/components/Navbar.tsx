@@ -10,7 +10,7 @@ import { GlowButton } from './ui/primitives';
 
 function WalletButton() {
   const { wallet, setWalletModalOpen } = useApp();
-  const { status, snapshot, backend } = wallet;
+  const { status, snapshot } = wallet;
 
   if (status.kind === 'connecting') {
     return (

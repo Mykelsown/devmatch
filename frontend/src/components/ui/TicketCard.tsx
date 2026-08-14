@@ -7,7 +7,7 @@
  * silhouette exactly. Every profile, requirement, and match card is built on
  * this.
  */
-import type { MouseEventHandler, ReactNode } from 'react';
+import type { MouseEvent as ReactMouseEvent, MouseEventHandler, ReactNode } from 'react';
 
 export function TicketCard({
   children,
@@ -36,7 +36,7 @@ export function TicketCard({
           ? (e) => {
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
-                onClick?.(e as unknown as React.MouseEvent<HTMLDivElement>);
+                onClick?.(e as unknown as ReactMouseEvent<HTMLDivElement>);
               }
             }
           : undefined

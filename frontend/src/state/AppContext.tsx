@@ -4,7 +4,8 @@
  * Owns routing, wallet state, the viewer's registered profile, the mock
  * marketplace data plane (requirements, developers, computed matches), the
  * per-match reveal flow, accept/decline decisions, and the MATCH rewards
- * panel. All components consume this via `useApp()`.
+ * panel. All domain logic lives in `lib/appState.ts` (pure, unit-tested);
+ * this provider only wires it to React state, timers, and the wallet backend.
  */
 import {
   createContext,
@@ -19,12 +20,15 @@ import {
 import { useHashRoute, type Route } from '../hooks/useHashRoute';
 import { useWallet, type WalletController } from '../hooks/useWallet';
 import {
-  DEMO_VIEWER,
-  REQUIREMENTS,
-  SAMPLE_DEVELOPERS,
-  SEED_REWARDS,
-  REWARDS_BASE,
-} from '../lib/data';
+  applyDecisionToActivities,
+  approveRevealPhase,
+  buildDeveloperMatches,
+  buildRequirementMatches,
+  computeRewardsBalance,
+  markVerificationCompleted,
+  requestRevealPhase,
+} from '../lib/appState';
+import { DEMO_VIEWER, REQUIREMENTS, SAMPLE_DEVELOPERS, SEED_REWARDS } from '../lib/data';
 import type {
   Decision,
   DeveloperProfile,
@@ -33,7 +37,6 @@ import type {
   RegisteredProfile,
   Requirement,
   RevealPhase,
-  RevealPolicy,
   RewardActivity,
   RewardsState,
   Role,
@@ -70,88 +73,6 @@ interface AppContextValue {
 
 const AppContext = createContext<AppContextValue | null>(null);
 
-/** Compatibility score: stack coverage dominates, experience adds a bonus. */
-export function computeScore(viewer: ProfileInput, subjectStack: string[]): number {
-  if (subjectStack.length === 0) return 62;
-  const overlap = subjectStack.filter((s) => viewer.stack.includes(s)).length;
-  const coverage = overlap / subjectStack.length;
-  const base = 55 + coverage * 40;
-  const yearBonus = Math.min(6, Math.max(0, viewer.years - 1) * 0.9);
-  return Math.max(55, Math.min(99, Math.round(base + yearBonus)));
-}
-
-function hiddenFieldsFor(kind: 'requirement' | 'developer'): string[] {
-  return kind === 'requirement'
-    ? ['Budget figures', 'Team size', 'Reviewer notes']
-    : ['Full name', 'GitHub handle', 'Current employer'];
-}
-
-function buildRequirementMatches(viewer: ProfileInput): Match[] {
-  return REQUIREMENTS.map((req) => ({
-    id: `m-${req.id}`,
-    subject: {
-      kind: 'requirement' as const,
-      id: req.id,
-      title: req.title,
-      subtitle: req.org,
-      description: req.description,
-      stack: req.stack,
-      meta: [
-        { label: 'Hours / wk', value: `${req.hours} hrs` },
-        { label: 'Duration', value: req.duration },
-        { label: 'Budget', value: req.budget },
-      ],
-      tier: req.tier,
-    },
-    score: computeScore(viewer, req.stack),
-    // Green postings auto-reveal more; yellow postings require approval.
-    policy: (req.tier === 'green' ? 'fields-on-policy' : 'approval-required') as RevealPolicy,
-    hiddenFields: hiddenFieldsFor('requirement'),
-    matchedAt: req.postedAt,
-  }));
-}
-
-function buildDeveloperMatches(viewer: ProfileInput, own: DeveloperProfile | null): Match[] {
-  const devs = own ? [own, ...SAMPLE_DEVELOPERS] : SAMPLE_DEVELOPERS;
-  return devs.map((dev) => {
-    // Locked policies must not leak years/hours into the card copy.
-    const revealed = dev.policy === 'fields-on-policy';
-    const subtitle =
-      dev.policy === 'score-only'
-        ? 'Score-only profile'
-        : dev.policy === 'approval-required'
-          ? 'Details locked — request reveal'
-          : `${dev.years} yrs · ${dev.hours} hrs/wk`;
-    const description =
-      dev.policy === 'score-only'
-        ? 'This developer shares only a match score with your team.'
-        : dev.policy === 'approval-required'
-          ? 'An anonymous developer with real experience. Request reveal to see their stack and availability.'
-          : `A ${dev.tier === 'green' ? 'GitHub-verified' : 'anonymous'} developer with ${dev.years} years of experience, available ${dev.hours} hours per week.`;
-    return {
-      id: `d-${dev.id}`,
-      subject: {
-        kind: 'developer' as const,
-        id: dev.id,
-        title: dev.alias,
-        subtitle,
-        description,
-        stack: dev.stack,
-        meta: [
-          { label: 'Experience', value: `${dev.years} years` },
-          { label: 'Availability', value: `${dev.hours} hrs/wk` },
-          ...(dev.github ? [{ label: 'GitHub', value: `@${dev.github}` }] : []),
-        ],
-        tier: dev.tier,
-      },
-      score: computeScore(viewer, dev.stack),
-      policy: dev.policy,
-      hiddenFields: hiddenFieldsFor('developer'),
-      matchedAt: 'just now',
-    };
-  });
-}
-
 export function AppProvider({ children }: { children: ReactNode }) {
   const { route, navigate } = useHashRoute();
   const wallet = useWallet();
@@ -176,17 +97,26 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const viewer: ProfileInput = profile ?? DEMO_VIEWER;
 
   const matches = useMemo(() => buildRequirementMatches(viewer), [viewer]);
-  const devMatches = useMemo(() => buildDeveloperMatches(viewer, profile ? {
-    id: profile.id,
-    alias: profile.name,
-    stack: profile.stack,
-    years: profile.years,
-    hours: profile.hours,
-    tier: profile.tier,
-    policy: profile.policy,
-    github: profile.github,
-    isViewer: true,
-  } : null), [viewer, profile]);
+  const devMatches = useMemo(
+    () =>
+      buildDeveloperMatches(
+        viewer,
+        profile
+          ? {
+              id: profile.id,
+              alias: profile.name,
+              stack: profile.stack,
+              years: profile.years,
+              hours: profile.hours,
+              tier: profile.tier,
+              policy: profile.policy,
+              github: profile.github,
+              isViewer: true,
+            }
+          : null,
+      ),
+    [viewer, profile],
+  );
 
   const getMatch = useCallback(
     (id: string) => matches.find((m) => m.id === id) ?? devMatches.find((m) => m.id === id),
@@ -206,9 +136,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       };
       setProfile(registered);
       if (input.tier === 'green') {
-        setActivities((acts) =>
-          acts.map((a) => (a.id === 'rw-verify' ? { ...a, state: 'completed' } : a)),
-        );
+        // GitHub attestation pays the verification reward.
+        setActivities((acts) => markVerificationCompleted(acts));
       }
       return registered;
     },
@@ -216,9 +145,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   );
 
   const requestReveal = useCallback((id: string) => {
-    setRevealPhases((p) => ({ ...p, [id]: 'requested' }));
+    setRevealPhases((p) => requestRevealPhase(p, id));
     revealTimers.current[id] = window.setTimeout(() => {
-      setRevealPhases((p) => ({ ...p, [id]: 'revealed' }));
+      // Demo: the other side auto-approves shortly after the request.
+      setRevealPhases((p) => approveRevealPhase(p, id));
     }, 2600);
   }, []);
 
@@ -229,25 +159,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const decide = useCallback((id: string, decision: 'accepted' | 'declined') => {
     setDecisions((prev) => ({ ...prev, [id]: decision }));
-    if (decision === 'accepted') {
-      // Release the requirement deposit + pay the match-accept reward.
-      setActivities((acts) =>
-        acts.map((a) =>
-          a.id === 'rw-deposit' || a.id === 'rw-release'
-            ? { ...a, state: 'completed' }
-            : a,
-        ),
-      );
-    }
+    // Accepted matches release the requirement deposit + pay the match-accept reward.
+    setActivities((acts) => applyDecisionToActivities(acts, decision));
   }, []);
 
-  const rewards: RewardsState = useMemo(() => {
-    const delta = activities.reduce(
-      (acc, a) => (a.state === 'completed' ? acc + (a.delta === '+' ? a.amount : -a.amount) : acc),
-      0,
-    );
-    return { balance: REWARDS_BASE + delta, activities };
-  }, [activities]);
+  const rewards: RewardsState = useMemo(
+    () => ({ balance: computeRewardsBalance(activities), activities }),
+    [activities],
+  );
 
   const value: AppContextValue = {
     route,

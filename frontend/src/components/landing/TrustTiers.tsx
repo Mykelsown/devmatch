@@ -56,7 +56,7 @@ export function TrustTiers() {
               <h3 className="mt-4 font-display text-xl font-bold text-mist">Green tier</h3>
               <p className="mt-2 text-sm leading-relaxed text-muted">
                 Skills are attestation-verified against your GitHub history.
-                Teams see a verified signal — you still control what gets
+                Teams see a verified signal, and you still control what gets
                 revealed.
               </p>
               <ul className="mt-4 space-y-2 text-sm text-mist/90">
@@ -94,7 +94,7 @@ export function TrustTiers() {
               <h3 className="mt-4 font-display text-xl font-bold text-mist">Yellow tier</h3>
               <p className="mt-2 text-sm leading-relaxed text-muted">
                 Register with no identity attached. Your commitment proves you
-                exist and match — your data stays yours, always.
+                exist and match. Your data stays yours, always.
               </p>
               <ul className="mt-4 space-y-2 text-sm text-mist/90">
                 {YELLOW_FEATURES.map((f) => (

@@ -26,7 +26,7 @@ export function Footer() {
             </div>
             <p className="mt-3 max-w-sm text-sm leading-relaxed text-muted">
               Privacy-first developer team-matching on Midnight. Your profile
-              lives as a zero-knowledge commitment — matches are proven, never
+              lives as a zero-knowledge commitment. Matches are proven, never
               exposed.
             </p>
           </div>

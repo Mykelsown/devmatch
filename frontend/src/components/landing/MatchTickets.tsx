@@ -23,7 +23,7 @@ export function MatchTickets() {
           </h2>
           <p className="mt-3 text-muted">
             Compatibility is computed inside a zero-knowledge proof. The only
-            thing a match ticket ever shows is the score — plus whatever the
+            thing a match ticket ever shows is the score, plus whatever the
             reveal policy allows.
           </p>
         </div>

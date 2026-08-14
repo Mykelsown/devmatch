@@ -181,7 +181,7 @@ describe('match building', () => {
     expect(byId['dev-3'].subject.subtitle).toBe('Score-only profile');
     expect(byId['dev-3'].subject.description).not.toMatch(/yrs|years|hours/);
     // dev-2 is approval-required
-    expect(byId['dev-2'].subject.subtitle).toBe('Details locked — request reveal');
+    expect(byId['dev-2'].subject.subtitle).toBe('Details locked · request reveal');
     // dev-1 is fields-on-policy: experience is visible
     expect(byId['dev-1'].subject.subtitle).toMatch(/yrs/);
   });

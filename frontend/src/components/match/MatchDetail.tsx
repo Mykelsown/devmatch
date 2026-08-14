@@ -55,7 +55,7 @@ function RevealedFields({ match }: { match: Match }) {
       </dl>
       <p className="mt-4 text-xs leading-relaxed text-faint">
         Still hidden: {match.hiddenFields.join(', ')}. Only the match score was
-        proven by the circuit — these fields were released by policy.
+        proven by the circuit. These fields were released by policy.
       </p>
     </div>
   );
@@ -117,7 +117,7 @@ export function MatchDetail({ id }: { id: string }) {
             <p className="mt-3 text-sm leading-relaxed text-muted">{subj.description}</p>
             <p className="mt-3 flex items-center justify-center gap-1.5 text-xs text-faint sm:justify-start">
               <Sparkles size={13} className="text-teal" aria-hidden="true" />
-              Proven by the DevMatch circuit from both commitments — no raw
+              Proven by the DevMatch circuit from both commitments. No raw
               data was exchanged.
             </p>
           </div>
@@ -132,7 +132,7 @@ export function MatchDetail({ id }: { id: string }) {
               <RevealedFields match={match} />
               <p className="rounded-xl border border-white/10 bg-white/[0.02] px-4 py-3 text-xs leading-relaxed text-muted">
                 {POLICY_META['fields-on-policy'].short}. Revealed automatically
-                on match — no approval needed from you.
+                on match. No approval needed from you.
               </p>
             </>
           )}
@@ -160,7 +160,7 @@ export function MatchDetail({ id }: { id: string }) {
             <div className="flex flex-col items-center gap-4 rounded-2xl border border-amber/30 bg-amber/[0.05] p-6 text-center">
               <Loader2 size={24} className="animate-spin text-amber" aria-hidden="true" />
               <div>
-                <p className="text-sm font-bold text-mist">Request sent — waiting for approval…</p>
+                <p className="text-sm font-bold text-mist">Request sent · waiting for approval…</p>
                 <p className="mx-auto mt-1 max-w-sm text-xs leading-relaxed text-muted">
                   The other side can approve or deny. You'll see their fields
                   the moment they approve. (Demo: auto-approves in a moment.)
@@ -174,7 +174,7 @@ export function MatchDetail({ id }: { id: string }) {
               <RevealedFields match={match} />
               <p className="rounded-xl border border-teal/20 bg-teal/[0.05] px-4 py-3 text-xs leading-relaxed text-teal-bright">
                 <Check size={13} className="mr-1 inline" strokeWidth={3} aria-hidden="true" />
-                Reveal approved — fields unlocked for this match only.
+                Reveal approved. Fields unlocked for this match only.
               </p>
             </>
           )}
@@ -217,7 +217,7 @@ export function MatchDetail({ id }: { id: string }) {
               Match accepted
             </p>
             <p className="mt-1 text-xs leading-relaxed text-muted">
-              Requirement deposit released and the match-accept reward paid —
+              Requirement deposit released and the match-accept reward paid.
               check the MATCH panel on the dashboard. The other side gets a
               copy of this ticket with the same score.
             </p>

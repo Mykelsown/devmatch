@@ -2,17 +2,17 @@
 
 /* ────────────────────────────────────────────────────────────────────────────
    DevMatch design system
-   Palette is fixed (do not deviate):
-   bg #080B22 / #0B0F2E · teal #4FC3E8 → #7DE8D0 · amber #F2A93C → #FFD27A
+   Palette: warm dark blue bg #120E28 / #181337 (amber-tinted, flat, no
+   gradients) · teal #4FC3E8 → #7DE8D0 · amber #F2A93C → #FFD27A
    text #E8EAF6 · navy-on-light #0B0F2E
    Signature motif: ticket-notch cards (a match is a ticket connecting two people)
    ──────────────────────────────────────────────────────────────────────────── */
 
 @theme {
-  --color-ink: #080b22;
-  --color-ink-2: #0b0f2e;
-  --color-panel: #0e1233;
-  --color-panel-2: #131a46;
+  --color-ink: #120e28;
+  --color-ink-2: #181337;
+  --color-panel: #1b1540;
+  --color-panel-2: #211a4a;
   --color-teal: #4fc3e8;
   --color-teal-bright: #7de8d0;
   --color-amber: #f2a93c;
@@ -34,11 +34,8 @@
   }
 
   body {
-    background:
-      radial-gradient(1100px 640px at 88% -12%, rgba(79, 195, 232, 0.14), transparent 62%),
-      radial-gradient(900px 620px at -12% 24%, rgba(21, 26, 69, 0.9), transparent 58%),
-      radial-gradient(700px 480px at 50% 118%, rgba(125, 232, 208, 0.06), transparent 60%),
-      var(--color-ink);
+    /* Flat warm dark blue. No gradient washes. */
+    background: var(--color-ink);
     color: var(--color-mist);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
@@ -73,20 +70,23 @@
 
 /* ─── Ticket-notch card (DevMatch signature) ────────────────────────────────
    Semicircular notches cut into the left/right edges, like a physical ticket.
-   Implemented with a two-layer mask whose intersection is everything except
-   the two notch circles. The glow lives on an outer wrapper (filter:
-   drop-shadow) so it follows the masked silhouette exactly. */
+   Implemented with TWO half-width mask layers combined by the DEFAULT (add)
+   compositing: the union of "left half minus notch" and "right half minus
+   notch" is the full card minus both notches.
+
+   Do not add intersect-style compositing here: with two half-width layers,
+   that keeps only the thin band where both layers overlap, rendering every
+   card invisible (blank but clickable). That was a shipped bug, fixed by
+   removing the composite lines entirely. */
 .ticket {
   --notch: 15px;
   border-radius: 20px;
   -webkit-mask:
-    radial-gradient(circle at 0 50%, transparent var(--notch), #000 calc(var(--notch) + 1px)) 0 0 / 50.5% 100% no-repeat,
-    radial-gradient(circle at 100% 50%, transparent var(--notch), #000 calc(var(--notch) + 1px)) 100% 0 / 50.5% 100% no-repeat;
-  -webkit-mask-composite: source-in;
+    radial-gradient(circle at 0 50%, transparent var(--notch), #000 calc(var(--notch) + 1px)) 0 0 / 51% 100% no-repeat,
+    radial-gradient(circle at 100% 50%, transparent var(--notch), #000 calc(var(--notch) + 1px)) 100% 0 / 51% 100% no-repeat;
   mask:
-    radial-gradient(circle at 0 50%, transparent var(--notch), #000 calc(var(--notch) + 1px)) 0 0 / 50.5% 100% no-repeat,
-    radial-gradient(circle at 100% 50%, transparent var(--notch), #000 calc(var(--notch) + 1px)) 100% 0 / 50.5% 100% no-repeat;
-  mask-composite: intersect;
+    radial-gradient(circle at 0 50%, transparent var(--notch), #000 calc(var(--notch) + 1px)) 0 0 / 51% 100% no-repeat,
+    radial-gradient(circle at 100% 50%, transparent var(--notch), #000 calc(var(--notch) + 1px)) 100% 0 / 51% 100% no-repeat;
 }
 
 .ticket-glow {
@@ -123,11 +123,11 @@
   border: 1px solid rgba(232, 234, 246, 0.16);
 }
 
-/* Glassmorphic surface */
+/* Flat glassmorphic surface. backdrop-filter is intentionally absent: combined
+   with the ticket mask it is a known Chromium rendering hazard (blank cards). */
 .glass {
-  background: linear-gradient(180deg, rgba(22, 28, 66, 0.82), rgba(11, 15, 46, 0.9));
+  background: var(--color-panel);
   border: 1px solid rgba(232, 234, 246, 0.09);
-  backdrop-filter: blur(14px);
 }
 
 /* ─── Buttons & pills ─────────────────────────────────────────────────────── */

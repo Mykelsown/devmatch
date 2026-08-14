@@ -67,7 +67,7 @@ export function RequirementCard({ match, index }: { match: Match; index: number 
               <Lock size={11} aria-hidden="true" />
               {match.policy === 'score-only'
                 ? 'Score-only match'
-                : 'Details locked — request reveal'}
+                : 'Details locked · request reveal'}
             </span>
           )}
         </div>

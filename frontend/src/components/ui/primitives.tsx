@@ -106,7 +106,7 @@ export function PolicyChip({ policy, className }: { policy: RevealPolicy; classN
 export function SectionTag({ children, className }: { children: ReactNode; className?: string }) {
   return (
     <span
-      className={`inline-flex items-center gap-2 rounded-full border border-teal/25 bg-teal/[0.07] px-3.5 py-1.5 text-[11px] font-bold uppercase tracking-[0.16em] text-teal ${className ?? ''}`}
+      className={`inline-flex items-center gap-2 rounded-full border border-amber/30 bg-amber/[0.08] px-3.5 py-1.5 text-[11px] font-bold uppercase tracking-[0.16em] text-amber-bright ${className ?? ''}`}
     >
       {children}
     </span>

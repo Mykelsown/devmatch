@@ -136,7 +136,7 @@ export function ConnectModal() {
 
             {backend.mode === 'mock' && (
               <p className="mt-4 rounded-xl border border-white/10 bg-white/[0.03] p-3 text-xs leading-relaxed text-muted">
-                Demo session — registration simulates proof generation and the
+                Demo session: registration simulates proof generation and the
                 ledger write. Install Lace to commit on the real Midnight
                 network.
               </p>

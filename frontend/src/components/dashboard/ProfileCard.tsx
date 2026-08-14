@@ -78,7 +78,7 @@ export function ProfileCard({ match, index }: { match: Match; index: number }) {
               <Lock size={11} aria-hidden="true" />
               {match.policy === 'score-only'
                 ? 'Score-only profile'
-                : 'Details locked — request reveal'}
+                : 'Details locked · request reveal'}
             </span>
           )}
         </div>

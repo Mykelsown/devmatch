@@ -45,7 +45,7 @@ export const DEMO_VIEWER: ProfileInput = {
 export const REQUIREMENTS: Requirement[] = [
   {
     id: 'req-1',
-    title: 'ZK proof engineer — circuit builder',
+    title: 'ZK proof engineer · circuit builder',
     org: 'Nimbus Labs',
     description:
       'Design and optimize R1CS/PLONKish circuits for a private voting dapp. Strong background in constraint systems and audit experience preferred.',
@@ -240,7 +240,7 @@ export const POLICY_META: Record<
   'approval-required': {
     label: 'Approval required',
     short: 'Approve every reveal',
-    blurb: 'Every request to see your details must be approved by you first — maximum control.',
+    blurb: 'Every request to see your details must be approved by you first. Maximum control.',
   },
 };
 
@@ -257,7 +257,7 @@ export const TIER_META: Record<
   yellow: {
     label: 'Yellow tier',
     short: 'Anonymous profile',
-    blurb: 'Register with no identity attached. Your commitment proves you exist — your data stays yours.',
+    blurb: 'Register with no identity attached. Your commitment proves you exist, and your data stays yours.',
     verifyLine: 'No verification required to start matching',
   },
 };
@@ -275,7 +275,7 @@ export const HOW_IT_WORKS: {
   {
     step: '02',
     title: 'Match',
-    body: 'The DevMatch circuit proves compatibility between two commitments — producing a match score without exposing either side.',
+    body: 'The DevMatch circuit proves compatibility between two commitments, producing a match score without exposing either side.',
   },
   {
     step: '03',

@@ -52,8 +52,13 @@ describe('TicketCard rendering', () => {
 describe('ticket-notch styles (regression guard)', () => {
   it('keeps the signature notch mask + glow + reduced-motion handling in styles.css', () => {
     expect(stylesCss).toContain('.ticket {');
-    expect(stylesCss).toContain('-webkit-mask-composite: source-in');
-    expect(stylesCss).toContain('mask-composite: intersect');
+    // Union mask: two half-width radial layers combined by the default (add)
+    // compositing. Intersect (or source-in) kept only the ~1% overlap band
+    // and rendered every ticket card invisible (the shipped bug).
+    expect(stylesCss).toContain('radial-gradient(circle at 0 50%');
+    expect(stylesCss).toContain('radial-gradient(circle at 100% 50%');
+    expect(stylesCss).not.toContain('mask-composite: intersect');
+    expect(stylesCss).not.toContain('-webkit-mask-composite: source-in');
     expect(stylesCss).toContain('.ticket-glow');
     expect(stylesCss).toContain('--notch');
     expect(stylesCss).toContain('@media (prefers-reduced-motion: reduce)');

@@ -34,7 +34,7 @@ export function Hero() {
 
             <p className="mt-6 max-w-xl text-lg leading-relaxed text-muted">
               Your profile becomes a zero-knowledge commitment on the Midnight
-              network. The DevMatch circuit proves compatibility with teams —
+              network. The DevMatch circuit proves compatibility with teams,
               without ever revealing your stack, experience, or identity.
             </p>
 

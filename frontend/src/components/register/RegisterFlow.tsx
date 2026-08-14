@@ -207,7 +207,7 @@ export function RegisterFlow() {
       </div>
 
       <TicketCard className="mt-6" innerClassName="p-6 sm:p-8">
-        {/* Step 1 — Basics */}
+        {/* Step 1 · Basics */}
         {step === 0 && (
           <div className="animate-fade-up space-y-6">
             <div>
@@ -257,7 +257,7 @@ export function RegisterFlow() {
           </div>
         )}
 
-        {/* Step 2 — Experience */}
+        {/* Step 2 · Experience */}
         {step === 1 && (
           <div className="animate-fade-up space-y-8">
             <div>
@@ -321,7 +321,7 @@ export function RegisterFlow() {
           </div>
         )}
 
-        {/* Step 3 — Privacy policy */}
+        {/* Step 3 · Privacy policy */}
         {step === 2 && (
           <div className="animate-fade-up">
             <p className="mb-4 text-sm text-muted">
@@ -373,7 +373,7 @@ export function RegisterFlow() {
           </div>
         )}
 
-        {/* Step 4 — GitHub verification (optional) */}
+        {/* Step 4 · GitHub verification (optional) */}
         {step === 3 && (
           <div className="animate-fade-up">
             {form.tier === 'green' && form.github ? (
@@ -407,7 +407,7 @@ export function RegisterFlow() {
                   </p>
                   <p className="mx-auto mt-1 max-w-sm text-xs leading-relaxed text-muted">
                     An attestation service proves your skills against your
-                    public GitHub history — without publishing anything to
+                    public GitHub history, without publishing anything to
                     your profile.
                   </p>
                   <GlowButton className="mt-5 w-full" onClick={runVerify} disabled={verifying}>
@@ -427,7 +427,7 @@ export function RegisterFlow() {
                     onClick={skipVerify}
                     className="mt-3 text-xs font-medium text-faint underline-offset-2 transition-colors hover:text-muted hover:underline"
                   >
-                    Skip — register at Yellow tier instead
+                    Skip · register at Yellow tier instead
                   </button>
                 </div>
               </div>

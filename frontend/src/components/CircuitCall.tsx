@@ -27,15 +27,15 @@ const STACK_OPTIONS = [
 const POLICY_OPTIONS: { value: RevealPolicy; label: string }[] = [
   {
     value: RevealPolicy.ScoreOnly,
-    label: 'Score only — reveal just a match score',
+    label: 'Score only · reveal just a match score',
   },
   {
     value: RevealPolicy.FieldsOnPolicy,
-    label: 'Fields on policy — reveal fields the project is allowed to see',
+    label: 'Fields on policy · reveal fields the project is allowed to see',
   },
   {
     value: RevealPolicy.ApprovalRequired,
-    label: 'Approval required — ask before revealing anything',
+    label: 'Approval required · ask before revealing anything',
   },
 ];
 
@@ -115,7 +115,7 @@ export function CircuitCall({
         <h2>Register your developer profile</h2>
         <p className="card-sub">
           Your data is hashed locally into a zero-knowledge commitment. Only the
-          hash — never the raw profile — is written to the Midnight ledger.
+          hash (never the raw profile) is written to the Midnight ledger.
         </p>
       </div>
 
@@ -220,7 +220,7 @@ export function CircuitCall({
             <div>
               <strong>Proved without revealing your input</strong>
               <span>
-                The commitment hash — not your data — was recorded on-chain.
+                The commitment hash (not your data) was recorded on-chain.
               </span>
             </div>
           </div>

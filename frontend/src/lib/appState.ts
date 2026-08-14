@@ -71,7 +71,7 @@ export function buildDeveloperMatches(viewer: ProfileInput, own: DeveloperProfil
       dev.policy === 'score-only'
         ? 'Score-only profile'
         : dev.policy === 'approval-required'
-          ? 'Details locked — request reveal'
+          ? 'Details locked · request reveal'
           : `${dev.years} yrs · ${dev.hours} hrs/wk`;
     const description =
       dev.policy === 'score-only'

@@ -12,7 +12,7 @@ import { FilterBar, type PolicyFilter, type SortMode } from './FilterBar';
 import { RequirementCard } from './RequirementCard';
 import { ProfileCard } from './ProfileCard';
 import { RewardsPanel } from './RewardsPanel';
-import { GlowButton, GhostButton } from '../ui/primitives';
+import { GlowButton, GhostButton, SectionTag } from '../ui/primitives';
 import { Reveal } from '../ui/Reveal';
 import type { RevealPolicy, Role } from '../../lib/types';
 
@@ -59,12 +59,13 @@ export function Dashboard() {
       <Reveal>
         <div className="flex flex-wrap items-end justify-between gap-5">
           <div className="max-w-xl">
-            <h2 className="font-display text-3xl font-extrabold tracking-tight text-mist sm:text-4xl">
+            <SectionTag>{role === 'dev' ? 'Developer view' : 'Team view'}</SectionTag>
+            <h2 className="mt-4 font-display text-3xl font-extrabold tracking-tight text-mist sm:text-4xl">
               {role === 'dev' ? 'Browse matches' : 'Find your developer'}
             </h2>
             <p className="mt-2 text-sm text-muted">
               Compatibility is proven by the DevMatch circuit from two
-              commitments. Scores are real — the data behind them stays hidden.
+              commitments. Scores are real. The data behind them stays hidden.
             </p>
           </div>
 
@@ -96,7 +97,7 @@ export function Dashboard() {
         <Reveal delay={60}>
           <div className="mt-6 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-teal/25 bg-teal/[0.06] px-5 py-4">
             <p className="text-sm text-muted">
-              Browsing as a guest — scores use a demo profile. Register yours to
+              Browsing as a guest. Scores use a demo profile. Register yours to
               get <span className="font-semibold text-teal-bright">your</span>{' '}
               real matches.
             </p>

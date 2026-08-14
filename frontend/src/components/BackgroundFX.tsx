@@ -2,9 +2,8 @@
  * BackgroundFX — ambient scene behind all content (pointer-events: none).
  *
  *  1. A faint particle-network canvas (thin teal lines drifting between
- *     slowly moving dots) — kept well under the 8% opacity ceiling.
- *  2. Two large blurred gradient orbs (teal + indigo).
- *  3. Hand-drawn scribble lines in the corners (decorative only).
+ *     slowly moving dots) · kept well under the 8% opacity ceiling.
+ *  2. Hand-drawn scribble lines in the corners (decorative only).
  *
  * The canvas animates only when `prefers-reduced-motion` is not set and
  * pauses when the tab is hidden.
@@ -162,25 +161,7 @@ export function BackgroundFX() {
 
   return (
     <div className="bg-scene" aria-hidden="true">
-      {/* Gradient orbs */}
-      <div
-        className="orb absolute -top-40 right-[-10%] h-[560px] w-[560px] rounded-full blur-[110px]"
-        style={{
-          background: 'radial-gradient(circle, rgba(79,195,232,0.16), transparent 65%)',
-        }}
-      />
-      <div
-        className="orb absolute bottom-[-20%] left-[-12%] h-[620px] w-[620px] rounded-full blur-[120px]"
-        style={{
-          background: 'radial-gradient(circle, rgba(21,26,69,0.9), transparent 62%)',
-        }}
-      />
-      <div
-        className="orb absolute left-[38%] top-[42%] h-[420px] w-[420px] rounded-full blur-[100px]"
-        style={{
-          background: 'radial-gradient(circle, rgba(242,169,60,0.05), transparent 60%)',
-        }}
-      />
+      {/* Particle network */}
       <canvas ref={canvasRef} />
       {/* Hand-drawn scribbles (decorative, very low opacity) */}
       <div className="absolute -left-16 top-24 -rotate-6">

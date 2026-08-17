@@ -24,6 +24,9 @@ frontend/src/generated/
 frontend/tsconfig.tsbuildinfo
 frontend/tsconfig.*.tsbuildinfo
 
+# build progress
+PROGRESS.md
+
 # Logs
 logs/
 *.log

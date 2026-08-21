@@ -2,14 +2,14 @@
  * ConnectModal — wallet connection with clear states:
  * idle (choose backend) → connecting → connected (truncated address pill).
  *
- * Backend choice: the demo wallet works anywhere; Lace · Midnight is offered
- * when the extension is installed and drives the real on-chain flow.
+ * Backend choice: demo wallet, Lace, or 1AM. Each drives the real
+ * on-chain flow when the extension is installed.
  */
 import { useEffect, type ReactNode } from 'react';
-import { Check, Loader2, Laptop, Wallet, X, BadgeCheck } from 'lucide-react';
+import { Check, Loader2, Laptop, Wallet, X, BadgeCheck, Shield } from 'lucide-react';
 import { useApp } from '../../state/AppContext';
 import { GlowButton, GhostButton } from '../ui/primitives';
-import { detectLace } from '../../lib/lace';
+import { detectWallet } from '../../lib/lace';
 import { NETWORK_ID } from '../../config';
 import type { BackendChoice } from '../../lib/wallet-backend';
 
@@ -17,7 +17,8 @@ export function ConnectModal() {
   const { walletModalOpen, setWalletModalOpen, wallet } = useApp();
   const { status, snapshot, choice, choose, connect, disconnect, backend } = wallet;
 
-  const laceInstalled = detectLace() !== undefined;
+  const laceInstalled = detectWallet('lace') !== undefined;
+  const oneAmInstalled = detectWallet('1am') !== undefined;
 
   useEffect(() => {
     if (!walletModalOpen) return;
@@ -51,12 +52,20 @@ export function ConnectModal() {
       icon: <Laptop size={18} aria-hidden="true" />,
     },
     {
-      key: 'midnight',
-      title: 'Lace · Midnight',
-      desc: `Connect the real ${NETWORK_ID} network through the Lace extension.`,
+      key: 'lace',
+      title: 'Lace',
+      desc: `Connect to the ${NETWORK_ID} network through the Lace wallet extension.`,
       available: laceInstalled,
       note: laceInstalled ? undefined : 'Extension not detected',
       icon: <Wallet size={18} aria-hidden="true" />,
+    },
+    {
+      key: '1am',
+      title: '1AM',
+      desc: `Connect to the ${NETWORK_ID} network through the 1AM wallet extension.`,
+      available: oneAmInstalled,
+      note: oneAmInstalled ? undefined : 'Extension not detected',
+      icon: <Shield size={18} aria-hidden="true" />,
     },
   ];
 
@@ -219,16 +228,25 @@ export function ConnectModal() {
               </p>
             )}
 
-            {!laceInstalled && (
+            {!laceInstalled && !oneAmInstalled && (
               <p className="mt-3 text-xs leading-relaxed text-faint">
-                Lace not detected?{' '}
+                No wallet detected?{' '}
                 <a
-                  href="https://chromewebstore.google.com/detail/lace/afkphoeejbbklcjcagepaknnnmjjkkff"
+                  href="https://chromewebstore.google.com/detail/lace/gafhhkghbfjjkeiendhlofajokpaflmk"
                   target="_blank"
                   rel="noreferrer"
                   className="text-teal transition-colors hover:text-teal-bright"
                 >
-                  Install the Lace extension ↗
+                  Install Lace ↗
+                </a>{' '}
+                or{' '}
+                <a
+                  href="https://chromewebstore.google.com/detail/1am/bphnkdkcnfhompoegfpgnkidcjfbojjp?hl=en"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-teal transition-colors hover:text-teal-bright"
+                >
+                  1AM ↗
                 </a>{' '}
                 to connect to the real Midnight network.
               </p>

@@ -1,19 +1,15 @@
 /**
  * Wallet backend — the single seam between the UI and the network.
  *
- * The build spec asks for wallet/contract calls to be stubbed behind a clean
- * interface for now. This module defines that interface and ships TWO
+ * This module defines the `WalletBackend` interface and ships THREE
  * implementations:
  *
- *   - `MockWalletBackend`   — a demo wallet with simulated latency, so the
- *     whole UI is explorable without Lace or a deployed contract.
- *   - `MidnightWalletBackend` — the real Level-2 flow: Lace connect →
- *     provider assembly → deployed `dev_profile` contract call. It reuses the
- *     existing `lib/lace`, `lib/providers`, `lib/contract` and
- *     `lib/commitment` wiring.
+ *   - `MockWalletBackend`        — demo wallet with simulated latency
+ *   - `LaceWalletBackend`        — real Lace wallet connection
+ *   - `OneAmWalletBackend`       — real 1AM wallet connection
  *
- * `resolveBackend()` auto-selects the real backend when Lace is installed and
- * falls back to the demo wallet otherwise; the connect modal lets the user
+ * `resolveBackend()` auto-selects the first available real wallet or
+ * falls back to the demo wallet; the connect modal lets the user
  * override that choice.
  */
 import {
@@ -21,10 +17,12 @@ import {
   RevealPolicy as ContractRevealPolicy,
 } from '../generated/contract/index.js';
 import {
-  connectLace,
+  connectWallet,
   readWalletSnapshot,
-  detectLace,
+  detectWallet,
+  detectAnyWallet,
   formatBalance,
+  type WalletType,
 } from './lace';
 import { createProviders } from './providers';
 import {
@@ -37,11 +35,13 @@ import { hashProfileToCommitment, bytesToHex } from './commitment';
 import { NETWORK_ID } from '../config';
 import type { ProfileInput, RegisterResult, RevealPolicy, TrustTier, WalletSnapshot } from './types';
 
-export type BackendChoice = 'auto' | 'midnight' | 'mock';
+export type BackendChoice = 'auto' | 'lace' | '1am' | 'mock';
 
 export interface WalletBackend {
   readonly mode: 'midnight' | 'mock';
   readonly label: string;
+  /** Which wallet type this backend uses (for midnight backends). */
+  readonly walletType?: WalletType;
   /** Whether this backend can work in the current environment. */
   isAvailable(): boolean;
   connect(): Promise<WalletSnapshot>;
@@ -117,21 +117,23 @@ export class MockWalletBackend implements WalletBackend {
 
 /* ─── Midnight backend (real Level-2 flow) ────────────────────────────────── */
 
-export class MidnightWalletBackend implements WalletBackend {
+/**
+ * Base class for real Midnight wallet backends.
+ * Both Lace and 1AM share the same contract/providers logic;
+ * only the wallet detection and connection differ.
+ */
+abstract class MidnightWalletBackendBase implements WalletBackend {
   readonly mode = 'midnight' as const;
-  readonly label = 'Lace · Midnight';
+  abstract readonly label: string;
+  abstract readonly walletType: WalletType;
 
-  // The ConnectedAPI is only needed during connect() — the contract instance
-  // below is what registerProfile talks to.
-  private contract: DevMatchContract | null = null;
+  protected contract: DevMatchContract | null = null;
 
-  isAvailable(): boolean {
-    return detectLace() !== undefined;
-  }
+  abstract isAvailable(): boolean;
 
   async connect(): Promise<WalletSnapshot> {
     configureNetwork();
-    const api = await connectLace(NETWORK_ID);
+    const api = await connectWallet(NETWORK_ID, this.walletType);
     const snapshot = await readWalletSnapshot(api);
     const providers = await createProviders(api, snapshot);
 
@@ -158,7 +160,7 @@ export class MidnightWalletBackend implements WalletBackend {
   async registerProfile(input: ProfileInput): Promise<RegisterResult> {
     const contract = this.contract;
     if (!contract) {
-      throw new Error('Wallet not connected. Connect Lace first, then register your profile.');
+      throw new Error(`Wallet not connected. Connect your ${this.label} wallet first, then register your profile.`);
     }
 
     // Hash in-browser — only the 32-byte digest leaves this device.
@@ -184,10 +186,33 @@ export class MidnightWalletBackend implements WalletBackend {
   }
 }
 
-/** Resolve the user's backend choice; 'auto' prefers Lace when installed. */
+export class LaceWalletBackend extends MidnightWalletBackendBase {
+  readonly label = 'Lace';
+  readonly walletType = 'lace' as const;
+
+  isAvailable(): boolean {
+    return detectWallet('lace') !== undefined;
+  }
+}
+
+export class OneAmWalletBackend extends MidnightWalletBackendBase {
+  readonly label = '1AM';
+  readonly walletType = '1am' as const;
+
+  isAvailable(): boolean {
+    return detectWallet('1am') !== undefined;
+  }
+}
+
+/** Resolve the user's backend choice; 'auto' picks the first available wallet. */
 export function resolveBackend(choice: BackendChoice): WalletBackend {
   if (choice === 'mock') return new MockWalletBackend();
-  const midnight = new MidnightWalletBackend();
-  if (choice === 'midnight') return midnight;
-  return midnight.isAvailable() ? midnight : new MockWalletBackend();
+  if (choice === 'lace') return new LaceWalletBackend();
+  if (choice === '1am') return new OneAmWalletBackend();
+
+  // Auto: prefer the first installed wallet
+  const installed = detectAnyWallet();
+  if (installed.includes('lace')) return new LaceWalletBackend();
+  if (installed.includes('1am')) return new OneAmWalletBackend();
+  return new MockWalletBackend();
 }

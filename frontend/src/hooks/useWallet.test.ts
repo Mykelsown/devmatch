@@ -47,7 +47,7 @@ function makeFakeBackend(
 ): WalletBackend {
   return {
     mode,
-    label: mode === 'mock' ? 'Demo wallet' : 'Lace · Midnight',
+    label: mode === 'mock' ? 'Demo wallet' : 'Lace',
     isAvailable: vi.fn(() => true),
     connect: vi.fn(),
     disconnect: vi.fn(),
@@ -170,15 +170,15 @@ describe('useWallet backend switching', () => {
     const newBackend = makeFakeBackend('midnight');
     vi.mocked(resolveBackend).mockReturnValue(newBackend);
     act(() => {
-      result.current.choose('midnight');
+      result.current.choose('lace');
     });
 
     expect(oldDisconnect).toHaveBeenCalledTimes(1);
-    expect(result.current.choice).toBe('midnight');
+    expect(result.current.choice).toBe('lace');
     expect(result.current.backend).toBe(newBackend);
     expect(result.current.status).toEqual({ kind: 'idle' });
     expect(result.current.snapshot).toBeNull();
-    expect(resolveBackend).toHaveBeenCalledWith('midnight');
+    expect(resolveBackend).toHaveBeenCalledWith('lace');
   });
 
   it('choose() with the current choice is a no-op (no second disconnect)', () => {

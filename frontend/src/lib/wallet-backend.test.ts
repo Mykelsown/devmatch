@@ -9,7 +9,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ConnectedAPI } from '@midnight-ntwrk/dapp-connector-api';
 import {
-  MidnightWalletBackend,
+  LaceWalletBackend,
+  OneAmWalletBackend,
   MockWalletBackend,
   resolveBackend,
 } from './wallet-backend';
@@ -19,9 +20,10 @@ import type { DevMatchContract } from './contract';
 import type { ProfileInput } from './types';
 
 vi.mock('./lace', () => ({
-  connectLace: vi.fn(),
+  connectWallet: vi.fn(),
   readWalletSnapshot: vi.fn(),
-  detectLace: vi.fn(),
+  detectWallet: vi.fn(),
+  detectAnyWallet: vi.fn(),
   // Plain function: survives vi.resetAllMocks() in afterEach.
   formatBalance: (value: bigint) => value.toLocaleString('en-US'),
 }));
@@ -41,7 +43,7 @@ vi.mock('../generated/contract/index.js', () => ({
   RevealPolicy: { ScoreOnly: 0, FieldsOnPolicy: 1, ApprovalRequired: 2 },
 }));
 
-import { connectLace, detectLace, readWalletSnapshot } from './lace';
+import { connectWallet, detectWallet, detectAnyWallet, readWalletSnapshot } from './lace';
 import { createProviders } from './providers';
 import {
   configureNetwork,
@@ -73,7 +75,7 @@ const SNAPSHOT = {
 };
 
 function stubMidnightFlow(balances: Record<string, bigint> = { tNIGHT: 0n }) {
-  vi.mocked(connectLace).mockResolvedValue(fakeApi);
+  vi.mocked(connectWallet).mockResolvedValue(fakeApi);
   vi.mocked(readWalletSnapshot).mockResolvedValue({ ...SNAPSHOT, balances });
   vi.mocked(createProviders).mockResolvedValue({} as never);
   vi.mocked(deriveLocalSecretKey).mockResolvedValue(new Uint8Array(32));
@@ -158,23 +160,23 @@ describe('MockWalletBackend', () => {
   });
 });
 
-describe('MidnightWalletBackend', () => {
+describe('LaceWalletBackend', () => {
   it('isAvailable() delegates to the Lace detection', () => {
-    const backend = new MidnightWalletBackend();
-    vi.mocked(detectLace).mockReturnValue({} as never);
+    const backend = new LaceWalletBackend();
+    vi.mocked(detectWallet).mockReturnValue({} as never);
     expect(backend.isAvailable()).toBe(true);
-    vi.mocked(detectLace).mockReturnValue(undefined);
+    vi.mocked(detectWallet).mockReturnValue(undefined);
     expect(backend.isAvailable()).toBe(false);
   });
 
   it('connect() assembles the real flow and returns a midnight snapshot', async () => {
     stubMidnightFlow({ tNIGHT: 123n });
 
-    const backend = new MidnightWalletBackend();
+    const backend = new LaceWalletBackend();
     const snap = await backend.connect();
 
     expect(configureNetwork).toHaveBeenCalledTimes(1);
-    expect(connectLace).toHaveBeenCalledWith(NETWORK_ID);
+    expect(connectWallet).toHaveBeenCalledWith(NETWORK_ID, 'lace');
     expect(deriveLocalSecretKey).toHaveBeenCalledWith(SNAPSHOT.address);
     expect(snap.mode).toBe('midnight');
     expect(snap.address).toBe(SNAPSHOT.address);
@@ -184,7 +186,7 @@ describe('MidnightWalletBackend', () => {
   });
 
   it('registerProfile() before connect rejects with a friendly error', async () => {
-    const backend = new MidnightWalletBackend();
+    const backend = new LaceWalletBackend();
     await expect(backend.registerProfile(INPUT)).rejects.toThrow(/connect/i);
   });
 
@@ -192,7 +194,7 @@ describe('MidnightWalletBackend', () => {
     callTx.mockResolvedValue({ public: { txId: '0xdeadbeef' } });
     stubMidnightFlow();
 
-    const backend = new MidnightWalletBackend();
+    const backend = new LaceWalletBackend();
     await backend.connect();
     const res = await backend.registerProfile({
       ...INPUT,
@@ -215,31 +217,75 @@ describe('MidnightWalletBackend', () => {
   it('disconnect() clears the contract so registration rejects again', async () => {
     stubMidnightFlow();
 
-    const backend = new MidnightWalletBackend();
+    const backend = new LaceWalletBackend();
     await backend.connect();
     await backend.disconnect();
     await expect(backend.registerProfile(INPUT)).rejects.toThrow(/connect/i);
   });
 });
 
+describe('OneAmWalletBackend', () => {
+  it('isAvailable() delegates to the 1AM detection', () => {
+    const backend = new OneAmWalletBackend();
+    vi.mocked(detectWallet).mockReturnValue({} as never);
+    expect(backend.isAvailable()).toBe(true);
+    vi.mocked(detectWallet).mockReturnValue(undefined);
+    expect(backend.isAvailable()).toBe(false);
+  });
+
+  it('connect() assembles the real flow and returns a midnight snapshot', async () => {
+    stubMidnightFlow({ tNIGHT: 456n });
+
+    const backend = new OneAmWalletBackend();
+    const snap = await backend.connect();
+
+    expect(configureNetwork).toHaveBeenCalledTimes(1);
+    expect(connectWallet).toHaveBeenCalledWith(NETWORK_ID, '1am');
+    expect(deriveLocalSecretKey).toHaveBeenCalledWith(SNAPSHOT.address);
+    expect(snap.mode).toBe('midnight');
+    expect(snap.address).toBe(SNAPSHOT.address);
+    expect(snap.shortAddress).toBe('t1qqwa…2345');
+    expect(snap.balance).toBe('456');
+    expect(snap.network).toBe(NETWORK_ID);
+  });
+
+  it('registerProfile() before connect rejects with a friendly error', async () => {
+    const backend = new OneAmWalletBackend();
+    await expect(backend.registerProfile(INPUT)).rejects.toThrow(/connect/i);
+  });
+});
+
 describe('resolveBackend', () => {
-  it('always returns the demo backend for "mock", even when Lace is present', () => {
-    vi.mocked(detectLace).mockReturnValue({} as never);
+  it('always returns the demo backend for "mock", even when wallets are present', () => {
+    vi.mocked(detectWallet).mockReturnValue({} as never);
     expect(resolveBackend('mock')).toBeInstanceOf(MockWalletBackend);
   });
 
-  it('always returns the Midnight backend for "midnight", even without Lace', () => {
-    vi.mocked(detectLace).mockReturnValue(undefined);
-    expect(resolveBackend('midnight')).toBeInstanceOf(MidnightWalletBackend);
+  it('always returns the Lace backend for "lace", even without Lace installed', () => {
+    vi.mocked(detectWallet).mockReturnValue(undefined);
+    expect(resolveBackend('lace')).toBeInstanceOf(LaceWalletBackend);
   });
 
-  it('"auto" prefers Midnight when Lace is installed', () => {
-    vi.mocked(detectLace).mockReturnValue({} as never);
-    expect(resolveBackend('auto')).toBeInstanceOf(MidnightWalletBackend);
+  it('always returns the 1AM backend for "1am", even without 1AM installed', () => {
+    vi.mocked(detectWallet).mockReturnValue(undefined);
+    expect(resolveBackend('1am')).toBeInstanceOf(OneAmWalletBackend);
   });
 
-  it('"auto" falls back to the demo backend when Lace is missing', () => {
-    vi.mocked(detectLace).mockReturnValue(undefined);
+  it('"auto" prefers Lace when installed', () => {
+    vi.mocked(detectWallet).mockReturnValue(undefined);
+    vi.mocked(detectAnyWallet).mockReturnValue(['lace']);
+    expect(resolveBackend('auto')).toBeInstanceOf(LaceWalletBackend);
+  });
+
+  it('"auto" falls back to 1AM when only 1AM is installed', () => {
+    vi.mocked(detectWallet).mockReturnValue(undefined);
+    vi.mocked(detectAnyWallet).mockReturnValue(['1am']);
+    expect(resolveBackend('auto')).toBeInstanceOf(OneAmWalletBackend);
+  });
+
+  it('"auto" falls back to the demo backend when no wallets are installed', () => {
+    vi.mocked(detectWallet).mockReturnValue(undefined);
+    vi.mocked(detectAnyWallet).mockReturnValue([]);
     expect(resolveBackend('auto')).toBeInstanceOf(MockWalletBackend);
   });
 });

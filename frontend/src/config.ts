@@ -7,6 +7,30 @@
 
 export const NETWORK_ID: string = import.meta.env.VITE_NETWORK_ID ?? 'preview';
 
+/**
+ * GitHub OAuth configuration for Green tier verification.
+ * Register a GitHub OAuth App at:
+ * https://github.com/settings/applications/new
+ * - Homepage URL: Your deployed app URL (e.g., https://devmatch.vercel.app)
+ * - Authorization callback URL: Your deployed app URL + /auth/callback
+ */
+export const GITHUB_CLIENT_ID: string = import.meta.env.VITE_GITHUB_CLIENT_ID ?? '';
+
+/**
+ * Where GitHub redirects after OAuth (must match the OAuth App callback URL).
+ * Lazily evaluated to avoid breaking in test environments where window
+ * is not available.
+ */
+export function getGitHubRedirectUri(): string {
+  if (import.meta.env.VITE_GITHUB_REDIRECT_URI) {
+    return import.meta.env.VITE_GITHUB_REDIRECT_URI;
+  }
+  if (typeof window !== 'undefined') {
+    return `${window.location.origin}/auth/callback`;
+  }
+  return 'http://localhost:5173/auth/callback';
+}
+
 /** Deployed DevMatch `dev_profile` contract address (Preview). */
 export const CONTRACT_ADDRESS: string =
   import.meta.env.VITE_CONTRACT_ADDRESS ??

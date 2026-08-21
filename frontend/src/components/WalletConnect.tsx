@@ -66,7 +66,7 @@ export function WalletConnect({
             <p className="warning">
               Lace wallet not detected. Install the{' '}
               <a
-                href="https://chromewebstore.google.com/detail/lace/afkphoeejbbklcjcagepaknnnmjjkkff"
+                href="https://chromewebstore.google.com/detail/lace/gafhhkghbfjjkeiendhlofajokpaflmk"
                 target="_blank"
                 rel="noreferrer"
               >

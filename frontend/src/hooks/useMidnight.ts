@@ -1,6 +1,6 @@
 /**
  * React hook wrapping the whole Midnight flow:
- *   wallet connect (Lace) -> provider assembly -> contract binding.
+ *   wallet connect (Lace or 1AM) -> provider assembly -> contract binding.
  *
  * Exposes a small state machine (idle/connecting/connected/error) plus a
  * `registerProfile` method that hashes the form client-side and calls the
@@ -8,7 +8,7 @@
  */
 import { useCallback, useRef, useState } from 'react';
 import type { ConnectedAPI } from '@midnight-ntwrk/dapp-connector-api';
-import { connectLace, readWalletSnapshot, WalletError, formatBalance } from '../lib/lace';
+import { connectWallet, readWalletSnapshot, WalletError, formatBalance, type WalletType } from '../lib/lace';
 import { createProviders } from '../lib/providers';
 import {
   configureNetwork,
@@ -34,13 +34,13 @@ export function useMidnight() {
   const apiRef = useRef<ConnectedAPI | null>(null);
   const contractRef = useRef<DevMatchContract | null>(null);
 
-  const connect = useCallback(async () => {
+  const connect = useCallback(async (walletType: WalletType = 'lace') => {
     setStatus({ kind: 'connecting' });
     try {
       // Global network id must be set before ANY contract/wallet op.
       configureNetwork();
 
-      const api = await connectLace(NETWORK_ID);
+      const api = await connectWallet(NETWORK_ID, walletType);
       const snapshot = await readWalletSnapshot(api);
       const providers = await createProviders(api, snapshot);
 
@@ -87,7 +87,7 @@ export function useMidnight() {
     async (commitment: Uint8Array, tier: number, policy: number): Promise<RegisterOutcome> => {
       const contract = contractRef.current;
       if (!contract) {
-        throw new Error('Not connected. Connect your Lace wallet first.');
+        throw new Error('Not connected. Connect your wallet first.');
       }
       const result = await contract.callTx.registerProfile(commitment, tier, policy);
       return {

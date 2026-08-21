@@ -64,7 +64,8 @@ An on-chain observer sees only a 32-byte commitment, a tier, a policy, and a pse
 - [Compact toolchain](https://github.com/midnightntwrk/compact) v0.31.x (`compact` on PATH)
 - [Docker](https://docs.docker.com/get-docker/) — for the proof server
 - [Yarn](https://yarnpkg.com) v1.22+ (optional, npm works too)
-- [Lace wallet](https://chromewebstore.google.com/detail/lace/afkphoeejbbklcjcagepaknnnmjjkkff) — for the Level 2 frontend
+- [Lace wallet](https://chromewebstore.google.com/detail/lace/gafhhkghbfjjkeiendhlofajokpaflmk) — for the Level 2 frontend
+- [1AM wallet](https://chromewebstore.google.com/detail/1am/bphnkdkcnfhompoegfpgnkidcjfbojjp?hl=en) — alternative wallet for the Level 2 frontend
 
 ---
 

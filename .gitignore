@@ -26,6 +26,7 @@ frontend/tsconfig.*.tsbuildinfo
 
 # build progress
 PROGRESS.md
+DEPLOYMENT.md
 
 # Logs
 logs/

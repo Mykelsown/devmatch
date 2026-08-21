@@ -23,6 +23,7 @@ import {
 import { useApp } from '../../state/AppContext';
 import { TicketCard } from '../ui/TicketCard';
 import { ScoreTag } from '../ui/ScoreTag';
+import { PrivacyShield } from '../ui/PrivacyShield';
 import { GhostButton, GlowButton, PolicyChip, SectionTag, TierBadge } from '../ui/primitives';
 import { POLICY_META } from '../../lib/data';
 import type { Match } from '../../lib/types';
@@ -123,7 +124,14 @@ export function MatchDetail({ id }: { id: string }) {
           </div>
         </div>
 
-        <div className="perf my-6" />
+        {/* Privacy Shield — always visible */}
+        <div className="my-6">
+          <PrivacyShield
+            hiddenFields={match.hiddenFields}
+            provenFields={['Compatibility score', 'Tier verification', 'Reveal policy']}  
+            revealPolicy={match.policy}
+          />
+        </div>
 
         {/* Reveal flow */}
         <div className="space-y-4">

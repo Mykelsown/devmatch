@@ -13,6 +13,7 @@ frontend/node_modules/
 attester/.env
 frontend/.env
 .env.*
+!frontend/.env.example
 
 # Build outputs
 dist/

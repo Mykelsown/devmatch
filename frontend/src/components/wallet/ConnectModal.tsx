@@ -4,12 +4,18 @@
  *
  * Backend choice: demo wallet, Lace, or 1AM. Each drives the real
  * on-chain flow when the extension is installed.
+ *
+ * Wallet detection is async: the Midnight dApp connector API injects
+ * window.midnight[WALLET_ID] asynchronously after page load. The modal
+ * polls up to 10x at 200ms intervals (2s budget) on mount, and provides
+ * a manual refresh button for users who install the extension while
+ * the page is already open.
  */
-import { useEffect, type ReactNode } from 'react';
-import { Check, Loader2, Laptop, Wallet, X, BadgeCheck, Shield } from 'lucide-react';
+import { useEffect, useState, useCallback, type ReactNode } from 'react';
+import { Check, Loader2, Laptop, Wallet, X, BadgeCheck, Shield, RefreshCw } from 'lucide-react';
 import { useApp } from '../../state/AppContext';
 import { GlowButton, GhostButton } from '../ui/primitives';
-import { detectWallet } from '../../lib/lace';
+import { detectWalletAsync } from '../../lib/lace';
 import { NETWORK_ID } from '../../config';
 import type { BackendChoice } from '../../lib/wallet-backend';
 
@@ -17,8 +23,26 @@ export function ConnectModal() {
   const { walletModalOpen, setWalletModalOpen, wallet } = useApp();
   const { status, snapshot, choice, choose, connect, disconnect, backend } = wallet;
 
-  const laceInstalled = detectWallet('lace') !== undefined;
-  const oneAmInstalled = detectWallet('1am') !== undefined;
+  /** Wallet detection state: 'detecting' while polling, 'detected' after polling completes. */
+  const [detectionState, setDetectionState] = useState<'detecting' | 'detected'>('detecting');
+  const [laceInstalled, setLaceInstalled] = useState(false);
+  const [oneAmInstalled, setOneAmInstalled] = useState(false);
+
+  const runDetection = useCallback(async () => {
+    setDetectionState('detecting');
+    const [lace, oneAm] = await Promise.all([
+      detectWalletAsync('lace'),
+      detectWalletAsync('1am'),
+    ]);
+    setLaceInstalled(lace !== undefined);
+    setOneAmInstalled(oneAm !== undefined);
+    setDetectionState('detected');
+  }, []);
+
+  useEffect(() => {
+    if (!walletModalOpen) return;
+    runDetection();
+  }, [walletModalOpen, runDetection]);
 
   useEffect(() => {
     if (!walletModalOpen) return;
@@ -35,6 +59,8 @@ export function ConnectModal() {
 
   if (!walletModalOpen) return null;
   const close = () => setWalletModalOpen(false);
+
+  const isDetecting = detectionState === 'detecting';
 
   const options: {
     key: BackendChoice;
@@ -56,7 +82,7 @@ export function ConnectModal() {
       title: 'Lace',
       desc: `Connect to the ${NETWORK_ID} network through the Lace wallet extension.`,
       available: laceInstalled,
-      note: laceInstalled ? undefined : 'Extension not detected',
+      note: isDetecting ? 'Detecting...' : laceInstalled ? undefined : 'Extension not detected',
       icon: <Wallet size={18} aria-hidden="true" />,
     },
     {
@@ -64,7 +90,7 @@ export function ConnectModal() {
       title: '1AM',
       desc: `Connect to the ${NETWORK_ID} network through the 1AM wallet extension.`,
       available: oneAmInstalled,
-      note: oneAmInstalled ? undefined : 'Extension not detected',
+      note: isDetecting ? 'Detecting...' : oneAmInstalled ? undefined : 'Extension not detected',
       icon: <Shield size={18} aria-hidden="true" />,
     },
   ];
@@ -90,7 +116,9 @@ export function ConnectModal() {
             <p className="mt-1 text-sm text-muted">
               {status.kind === 'connected'
                 ? 'Session active on the DevMatch network.'
-                : 'Choose how you want to connect.'}
+                : isDetecting
+                  ? 'Detecting installed wallets...'
+                  : 'Choose how you want to connect.'}
             </p>
           </div>
           <button
@@ -164,13 +192,13 @@ export function ConnectModal() {
             <Loader2 size={34} className="animate-spin text-teal" aria-hidden="true" />
             <p className="mt-4 text-sm font-medium text-mist">
               {backend.mode === 'mock'
-                ? 'Opening demo session…'
-                : 'Waiting for wallet approval…'}
+                ? 'Opening demo session...'
+                : 'Waiting for wallet approval...'}
             </p>
             <p className="mt-1 text-xs text-muted">
               {backend.mode === 'mock'
                 ? 'Simulating a connect request'
-                : `Approve the request in the Lace popup on ${NETWORK_ID}.`}
+                : `Approve the request in the wallet popup on ${NETWORK_ID}.`}
             </p>
           </div>
         )}
@@ -204,7 +232,7 @@ export function ConnectModal() {
                     <span className="min-w-0">
                       <span className="flex items-center gap-2 text-sm font-semibold text-mist">
                         {opt.title}
-                        {!opt.available && (
+                        {!opt.available && opt.note && (
                           <span className="rounded-full border border-amber/40 bg-amber/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-bright">
                             {opt.note}
                           </span>
@@ -228,7 +256,7 @@ export function ConnectModal() {
               </p>
             )}
 
-            {!laceInstalled && !oneAmInstalled && (
+            {!isDetecting && !laceInstalled && !oneAmInstalled && (
               <p className="mt-3 text-xs leading-relaxed text-faint">
                 No wallet detected?{' '}
                 <a
@@ -237,7 +265,7 @@ export function ConnectModal() {
                   rel="noreferrer"
                   className="text-teal transition-colors hover:text-teal-bright"
                 >
-                  Install Lace ↗
+                  Install Lace
                 </a>{' '}
                 or{' '}
                 <a
@@ -246,19 +274,30 @@ export function ConnectModal() {
                   rel="noreferrer"
                   className="text-teal transition-colors hover:text-teal-bright"
                 >
-                  1AM ↗
+                  1AM
                 </a>{' '}
                 to connect to the real Midnight network.
               </p>
             )}
 
+            {/* Refresh detection button */}
+            {!isDetecting && (
+              <button
+                onClick={runDetection}
+                className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2 text-xs font-medium text-muted transition-colors hover:border-teal/30 hover:text-teal-bright"
+              >
+                <RefreshCw size={12} aria-hidden="true" />
+                Refresh wallet detection
+              </button>
+            )}
+
             <GlowButton
-              className="mt-5 w-full"
+              className="mt-4 w-full"
               onClick={connect}
-              disabled={!options.find((o) => o.key === choice || (choice === 'auto' && o.key === backend.mode))?.available}
+              disabled={isDetecting || !options.find((o) => o.key === choice || (choice === 'auto' && o.key === backend.mode))?.available}
             >
               <Wallet size={16} aria-hidden="true" />
-              Connect
+              {isDetecting ? 'Detecting wallets...' : 'Connect'}
             </GlowButton>
           </div>
         )}

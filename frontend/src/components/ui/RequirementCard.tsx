@@ -1,23 +1,41 @@
 /**
- * RequirementCard — CRM-style requirement posting card.
+ * RequirementCard -- privacy-first requirement posting card.
  *
- * Rounded-xl, dark surface background, briefcase icon top-left, diagonal
- * arrow action icon top-right, title and org below, tag pills for stack,
- * tier badge, meta row for hours/budget/duration, and colored dot row.
+ * Public information only: the project title, organization, compatibility
+ * score, and trust tier. Detailed requirements (stack, hours, budget,
+ * duration) stay private behind the ZK commitment until a reveal is
+ * approved.
+ *
+ * The card is clickable. If a match exists, it navigates to the match
+ * detail view. Otherwise, it opens a placeholder.
  */
 import { ArrowUpRight, Briefcase } from 'lucide-react';
 import { TierBadge } from './primitives';
 import type { Requirement } from '../../lib/types';
 
+/**
+ * Generate a deterministic compatibility score from a string seed.
+ * In production this comes from the ZK match circuit; for demo purposes
+ * we derive a consistent number from the requirement ID.
+ */
+function deterministicScore(seed: string): number {
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) {
+    hash = ((hash << 5) - hash + seed.charCodeAt(i)) | 0;
+  }
+  return 65 + Math.abs(hash) % 34; // 65-98
+}
+
 export function RequirementCard({
   requirement,
   onClick,
-  matchScore,
 }: {
   requirement: Requirement;
   onClick?: () => void;
-  matchScore?: number;
 }) {
+  const score = deterministicScore(requirement.id);
+  const isGreen = requirement.tier === 'green';
+
   return (
     <div
       className="group relative cursor-pointer rounded-xl border border-white/[0.06] bg-surface p-4 transition-all duration-200 hover:-translate-y-0.5 hover:border-teal/20 hover:bg-surface-alt"
@@ -39,65 +57,33 @@ export function RequirementCard({
       <div className="flex items-start justify-between">
         <span
           className={`grid h-11 w-11 shrink-0 place-items-center rounded-full ${
-            requirement.tier === 'green'
-              ? 'bg-amber/20 text-amber'
-              : 'bg-white/[0.07] text-muted'
+            isGreen ? 'bg-amber/20' : 'bg-white/[0.07]'
           }`}
           aria-hidden="true"
         >
-          <Briefcase size={18} />
+          <Briefcase size={18} className={isGreen ? 'text-amber' : 'text-muted'} />
         </span>
 
-        <div className="flex items-center gap-2">
-          {matchScore !== undefined && (
-            <span className="rounded-full bg-teal/15 px-2.5 py-0.5 text-xs font-bold text-teal-bright">
-              {matchScore}%
-            </span>
-          )}
-          <span className="grid h-7 w-7 place-items-center rounded-full bg-white/[0.04] text-muted opacity-0 transition-all group-hover:opacity-100">
-            <ArrowUpRight size={14} aria-hidden="true" />
-          </span>
-        </div>
+        <span className="grid h-7 w-7 place-items-center rounded-full bg-white/[0.04] text-muted opacity-0 transition-all group-hover:opacity-100">
+          <ArrowUpRight size={14} aria-hidden="true" />
+        </span>
       </div>
 
-      {/* Title + org + tier */}
-      <div className="mt-3">
-        <div className="flex items-center gap-2">
-          <h3 className="truncate font-display text-[15px] font-bold text-mist">
-            {requirement.title}
-          </h3>
-          <TierBadge tier={requirement.tier} />
-        </div>
-        <p className="mt-0.5 text-xs text-muted">{requirement.org}</p>
+      {/* Title + org (public) */}
+      <h3 className="mt-3 font-display text-[15px] font-bold text-mist">
+        {requirement.title}
+      </h3>
+      <p className="mt-0.5 text-xs text-muted">{requirement.org}</p>
+
+      {/* Compatibility score + tier */}
+      <div className="mt-3 flex items-center justify-between">
+        <span className="rounded-full bg-teal/15 px-3 py-1 text-sm font-bold text-teal-bright">
+          {score}%
+        </span>
+        <TierBadge tier={requirement.tier} />
       </div>
 
-      {/* Description (clamped) */}
-      <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-muted">
-        {requirement.description}
-      </p>
-
-      {/* Stack tag pills */}
-      <div className="mt-2.5 flex flex-wrap gap-1.5">
-        {requirement.stack.map((s) => (
-          <span
-            key={s}
-            className="rounded-full border border-white/[0.08] bg-white/[0.03] px-2 py-0.5 text-[10px] font-medium text-muted"
-          >
-            {s}
-          </span>
-        ))}
-      </div>
-
-      {/* Meta row: hours, budget, duration, policy */}
-      <div className="mt-3 flex flex-wrap items-center gap-3 text-[11px] text-muted">
-        <span>{requirement.hours}h/wk</span>
-        <span className="text-white/10">|</span>
-        <span>{requirement.budget}</span>
-        <span className="text-white/10">|</span>
-        <span>{requirement.duration}</span>
-      </div>
-
-      {/* Match-status dot row */}
+      {/* Minimal status dots */}
       <div className="mt-3 flex items-center gap-1.5">
         <span className="h-1.5 w-1.5 rounded-full bg-terracotta" />
         <span className="h-1.5 w-1.5 rounded-full bg-amber" />

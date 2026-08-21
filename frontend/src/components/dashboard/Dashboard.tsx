@@ -66,7 +66,7 @@ function FilterPillRow<T extends string>({
 }
 
 export function Dashboard() {
-  const { role, setRole, isGuest, navigate, dashboardSection, setDashboardSection, logout, wallet, isRegistered } = useApp();
+  const { role, setRole, isGuest, navigate, dashboardSection, setDashboardSection, logout, wallet, isRegistered, matches, devMatches } = useApp();
   const [devFilter, setDevFilter] = useState<DevFilter>('All');
   const [reqFilter, setReqFilter] = useState<ReqFilter>('All');
 
@@ -188,6 +188,18 @@ export function Dashboard() {
     );
   }
 
+  /** Find a match ID for a developer profile by searching devMatches. */
+  const findDevMatchId = (devId: string): string | undefined => {
+    const m = devMatches.find((dm) => dm.subject.id === devId);
+    return m?.id;
+  };
+
+  /** Find a match ID for a requirement by searching matches. */
+  const findReqMatchId = (reqId: string): string | undefined => {
+    const m = matches.find((rm) => rm.subject.id === reqId);
+    return m?.id;
+  };
+
   return (
     <div className="flex min-h-screen">
       <Sidebar activeSection={dashboardSection} onNavigate={handleSectionNavigate} />
@@ -259,7 +271,12 @@ export function Dashboard() {
                     <DeveloperCard
                       key={dev.id}
                       profile={dev}
-                      onClick={() => navigate({ view: 'dashboard' })}
+                      onClick={() => {
+                        const matchId = findDevMatchId(dev.id);
+                        if (matchId) {
+                          navigate({ view: 'match', id: matchId });
+                        }
+                      }}
                     />
                   ))}
                 </div>
@@ -299,7 +316,12 @@ export function Dashboard() {
                     <RequirementCard
                       key={req.id}
                       requirement={req}
-                      onClick={() => navigate({ view: 'dashboard' })}
+                      onClick={() => {
+                        const matchId = findReqMatchId(req.id);
+                        if (matchId) {
+                          navigate({ view: 'match', id: matchId });
+                        }
+                      }}
                     />
                   ))}
                 </div>

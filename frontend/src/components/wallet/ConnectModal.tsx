@@ -1,21 +1,28 @@
 /**
- * ConnectModal — wallet connection with clear states:
- * idle (choose backend) → connecting → connected (truncated address pill).
+ * ConnectModal -- wallet connection with multiple wallet types.
  *
- * Backend choice: demo wallet, Lace, or 1AM. Each drives the real
- * on-chain flow when the extension is installed.
+ * Supports two wallet categories:
+ *   1. Midnight wallets (Lace, 1AM) via the Midnight dApp connector API
+ *   2. EVM wallets (MetaMask, Coinbase, Phantom, etc.) via EIP-6963
  *
- * Wallet detection is async: the Midnight dApp connector API injects
- * window.midnight[WALLET_ID] asynchronously after page load. The modal
- * polls up to 10x at 200ms intervals (2s budget) on mount, and provides
- * a manual refresh button for users who install the extension while
- * the page is already open.
+ * Wallet detection is async: extensions inject their APIs after page load.
+ * The modal polls on mount and provides a manual refresh button.
  */
 import { useEffect, useState, useCallback, type ReactNode } from 'react';
-import { Check, Loader2, Laptop, Wallet, X, BadgeCheck, Shield, RefreshCw } from 'lucide-react';
+import {
+  Check,
+  Loader2,
+  Laptop,
+  Wallet,
+  X,
+  BadgeCheck,
+  Shield,
+  RefreshCw,
+} from 'lucide-react';
 import { useApp } from '../../state/AppContext';
 import { GlowButton, GhostButton } from '../ui/primitives';
 import { detectWalletAsync } from '../../lib/lace';
+import { useEvmWallet, type EvmWalletProvider } from '../../hooks/useEvmWallet';
 import { NETWORK_ID } from '../../config';
 import type { BackendChoice } from '../../lib/wallet-backend';
 
@@ -23,12 +30,14 @@ export function ConnectModal() {
   const { walletModalOpen, setWalletModalOpen, wallet } = useApp();
   const { status, snapshot, choice, choose, connect, disconnect, backend } = wallet;
 
-  /** Wallet detection state: 'detecting' while polling, 'detected' after polling completes. */
+  const evm = useEvmWallet();
+
+  // Midnight wallet detection state
   const [detectionState, setDetectionState] = useState<'detecting' | 'detected'>('detecting');
   const [laceInstalled, setLaceInstalled] = useState(false);
   const [oneAmInstalled, setOneAmInstalled] = useState(false);
 
-  const runDetection = useCallback(async () => {
+  const runMidnightDetection = useCallback(async () => {
     setDetectionState('detecting');
     const [lace, oneAm] = await Promise.all([
       detectWalletAsync('lace'),
@@ -41,8 +50,8 @@ export function ConnectModal() {
 
   useEffect(() => {
     if (!walletModalOpen) return;
-    runDetection();
-  }, [walletModalOpen, runDetection]);
+    runMidnightDetection();
+  }, [walletModalOpen, runMidnightDetection]);
 
   useEffect(() => {
     if (!walletModalOpen) return;
@@ -62,7 +71,7 @@ export function ConnectModal() {
 
   const isDetecting = detectionState === 'detecting';
 
-  const options: {
+  const midnightOptions: {
     key: BackendChoice;
     title: string;
     desc: string;
@@ -95,6 +104,13 @@ export function ConnectModal() {
     },
   ];
 
+  const handleEvmConnect = async (w: EvmWalletProvider) => {
+    await evm.connect(w);
+  };
+
+  const isEvmConnected = evm.isConnected;
+  const isMidnightConnected = status.kind === 'connected';
+
   return (
     <div
       className="modal-backdrop"
@@ -103,7 +119,7 @@ export function ConnectModal() {
       }}
     >
       <div
-        className="w-full max-w-md animate-fade-up rounded-3xl border border-white/10 bg-ink-2/95 p-6 shadow-ticket backdrop-blur-2xl"
+        className="w-full max-w-md max-h-[90vh] overflow-y-auto animate-fade-up rounded-3xl border border-white/10 bg-ink-2/95 p-6 shadow-ticket backdrop-blur-2xl"
         role="dialog"
         aria-modal="true"
         aria-label="Connect wallet"
@@ -114,11 +130,11 @@ export function ConnectModal() {
               Connect wallet
             </h2>
             <p className="mt-1 text-sm text-muted">
-              {status.kind === 'connected'
-                ? 'Session active on the DevMatch network.'
+              {isMidnightConnected || isEvmConnected
+                ? 'Session active on DevMatch.'
                 : isDetecting
                   ? 'Detecting installed wallets...'
-                  : 'Choose how you want to connect.'}
+                  : 'Choose a wallet to connect.'}
             </p>
           </div>
           <button
@@ -130,15 +146,15 @@ export function ConnectModal() {
           </button>
         </div>
 
-        {/* Connected */}
-        {status.kind === 'connected' && snapshot && (
+        {/* -- Midnight Wallet Connected -- */}
+        {isMidnightConnected && snapshot && (
           <div className="mt-5 animate-fade-up">
             <div className="flex items-center gap-3 rounded-2xl border border-teal/25 bg-teal/[0.07] p-4">
               <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-teal-bright text-ink">
                 <Check size={20} strokeWidth={3} aria-hidden="true" />
               </span>
               <div className="min-w-0">
-                <p className="text-sm font-semibold text-teal-bright">Connected</p>
+                <p className="text-sm font-semibold text-teal-bright">Connected (Midnight)</p>
                 <p className="truncate font-mono text-xs text-muted" title={snapshot.address}>
                   {snapshot.address}
                 </p>
@@ -171,14 +187,6 @@ export function ConnectModal() {
               </div>
             </dl>
 
-            {backend.mode === 'mock' && (
-              <p className="mt-4 rounded-xl border border-white/10 bg-white/[0.03] p-3 text-xs leading-relaxed text-muted">
-                Demo session: registration simulates proof generation and the
-                ledger write. Install Lace to commit on the real Midnight
-                network.
-              </p>
-            )}
-
             <div className="mt-5 grid grid-cols-2 gap-3">
               <GhostButton onClick={disconnect}>Disconnect</GhostButton>
               <GlowButton onClick={close}>Done</GlowButton>
@@ -186,7 +194,35 @@ export function ConnectModal() {
           </div>
         )}
 
-        {/* Connecting */}
+        {/* -- EVM Wallet Connected -- */}
+        {isEvmConnected && !isMidnightConnected && evm.address && (
+          <div className="mt-5 animate-fade-up">
+            <div className="flex items-center gap-3 rounded-2xl border border-teal/25 bg-teal/[0.07] p-4">
+              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-teal-bright text-ink">
+                <Check size={20} strokeWidth={3} aria-hidden="true" />
+              </span>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-teal-bright">Connected (EVM)</p>
+                <p className="truncate font-mono text-xs text-muted" title={evm.address}>
+                  {evm.shortenAddress(evm.address)}
+                </p>
+              </div>
+            </div>
+
+            {evm.chainId && (
+              <div className="mt-3 rounded-xl border border-white/10 bg-white/[0.03] p-3 text-xs text-muted">
+                Chain: <span className="font-mono text-mist">{evm.chainId}</span>
+              </div>
+            )}
+
+            <div className="mt-5 grid grid-cols-2 gap-3">
+              <GhostButton onClick={evm.disconnect}>Disconnect</GhostButton>
+              <GlowButton onClick={close}>Done</GlowButton>
+            </div>
+          </div>
+        )}
+
+        {/* -- Connecting (Midnight) -- */}
         {status.kind === 'connecting' && (
           <div className="mt-6 flex flex-col items-center py-6 text-center">
             <Loader2 size={34} className="animate-spin text-teal" aria-hidden="true" />
@@ -203,102 +239,164 @@ export function ConnectModal() {
           </div>
         )}
 
-        {/* Idle / error */}
-        {(status.kind === 'idle' || status.kind === 'error') && (
-          <div className="mt-5">
-            <div className="grid gap-2.5" role="radiogroup" aria-label="Wallet backend">
-              {options.map((opt) => {
-                const selected = choice === opt.key || (choice === 'auto' && opt.key === backend.mode);
-                return (
-                  <button
-                    key={opt.key}
-                    role="radio"
-                    aria-checked={selected}
-                    disabled={!opt.available}
-                    onClick={() => choose(opt.key)}
-                    className={`flex items-start gap-3 rounded-2xl border p-3.5 text-left transition-all ${
-                      selected
-                        ? 'border-teal/45 bg-teal/[0.08]'
-                        : 'border-white/10 bg-white/[0.02] hover:border-white/20'
-                    } ${!opt.available ? 'cursor-not-allowed opacity-50' : ''}`}
-                  >
-                    <span
-                      className={`grid h-9 w-9 shrink-0 place-items-center rounded-full ${
-                        selected ? 'bg-teal text-ink' : 'bg-white/[0.06] text-muted'
-                      }`}
-                    >
-                      {opt.icon}
-                    </span>
-                    <span className="min-w-0">
-                      <span className="flex items-center gap-2 text-sm font-semibold text-mist">
-                        {opt.title}
-                        {!opt.available && opt.note && (
-                          <span className="rounded-full border border-amber/40 bg-amber/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-bright">
-                            {opt.note}
-                          </span>
-                        )}
-                      </span>
-                      <span className="mt-0.5 block text-xs leading-relaxed text-muted">
-                        {opt.desc}
-                      </span>
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
+        {/* -- Connecting (EVM) -- */}
+        {evm.isConnecting && (
+          <div className="mt-6 flex flex-col items-center py-6 text-center">
+            <Loader2 size={34} className="animate-spin text-teal" aria-hidden="true" />
+            <p className="mt-4 text-sm font-medium text-mist">Waiting for wallet approval...</p>
+            <p className="mt-1 text-xs text-muted">Approve the connection in your wallet popup.</p>
+          </div>
+        )}
 
+        {/* -- Idle / Error: wallet selection -- */}
+        {!isMidnightConnected && !isEvmConnected && status.kind !== 'connecting' && !evm.isConnecting && (
+          <div className="mt-5 space-y-6">
+
+            {/* Error messages */}
             {status.kind === 'error' && (
               <p
                 role="alert"
-                className="mt-3 rounded-xl border border-red-400/25 bg-red-400/[0.07] p-3 text-xs leading-relaxed text-red-300"
+                className="rounded-xl border border-red-400/25 bg-red-400/[0.07] p-3 text-xs leading-relaxed text-red-300"
               >
                 {status.message}
               </p>
             )}
-
-            {!isDetecting && !laceInstalled && !oneAmInstalled && (
-              <p className="mt-3 text-xs leading-relaxed text-faint">
-                No wallet detected?{' '}
-                <a
-                  href="https://chromewebstore.google.com/detail/lace/gafhhkghbfjjkeiendhlofajokpaflmk"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-teal transition-colors hover:text-teal-bright"
-                >
-                  Install Lace
-                </a>{' '}
-                or{' '}
-                <a
-                  href="https://chromewebstore.google.com/detail/1am/bphnkdkcnfhompoegfpgnkidcjfbojjp?hl=en"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-teal transition-colors hover:text-teal-bright"
-                >
-                  1AM
-                </a>{' '}
-                to connect to the real Midnight network.
+            {evm.error && (
+              <p
+                role="alert"
+                className="rounded-xl border border-red-400/25 bg-red-400/[0.07] p-3 text-xs leading-relaxed text-red-300"
+              >
+                {evm.error}
               </p>
             )}
 
-            {/* Refresh detection button */}
-            {!isDetecting && (
-              <button
-                onClick={runDetection}
-                className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2 text-xs font-medium text-muted transition-colors hover:border-teal/30 hover:text-teal-bright"
-              >
-                <RefreshCw size={12} aria-hidden="true" />
-                Refresh wallet detection
-              </button>
-            )}
+            {/* Midnight wallets */}
+            <div>
+              <h3 className="mb-2 text-xs font-bold uppercase tracking-wider text-faint">
+                Midnight wallets
+              </h3>
+              <div className="grid gap-2" role="radiogroup" aria-label="Midnight wallet backend">
+                {midnightOptions.map((opt) => {
+                  const selected = choice === opt.key || (choice === 'auto' && opt.key === backend.mode);
+                  return (
+                    <button
+                      key={opt.key}
+                      role="radio"
+                      aria-checked={selected}
+                      disabled={!opt.available}
+                      onClick={() => choose(opt.key)}
+                      className={`flex items-start gap-3 rounded-2xl border p-3.5 text-left transition-all ${
+                        selected
+                          ? 'border-teal/45 bg-teal/[0.08]'
+                          : 'border-white/10 bg-white/[0.02] hover:border-white/20'
+                      } ${!opt.available ? 'cursor-not-allowed opacity-50' : ''}`}
+                    >
+                      <span
+                        className={`grid h-9 w-9 shrink-0 place-items-center rounded-full ${
+                          selected ? 'bg-teal text-ink' : 'bg-white/[0.06] text-muted'
+                        }`}
+                      >
+                        {opt.icon}
+                      </span>
+                      <span className="min-w-0">
+                        <span className="flex items-center gap-2 text-sm font-semibold text-mist">
+                          {opt.title}
+                          {!opt.available && opt.note && (
+                            <span className="rounded-full border border-amber/40 bg-amber/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-bright">
+                              {opt.note}
+                            </span>
+                          )}
+                        </span>
+                        <span className="mt-0.5 block text-xs leading-relaxed text-muted">
+                          {opt.desc}
+                        </span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
 
-            <GlowButton
-              className="mt-4 w-full"
-              onClick={connect}
-              disabled={isDetecting || !options.find((o) => o.key === choice || (choice === 'auto' && o.key === backend.mode))?.available}
+              <GlowButton
+                className="mt-3 w-full"
+                onClick={connect}
+                disabled={
+                  isDetecting ||
+                  !midnightOptions.find(
+                    (o) => o.key === choice || (choice === 'auto' && o.key === backend.mode),
+                  )?.available
+                }
+              >
+                <Wallet size={16} aria-hidden="true" />
+                {isDetecting ? 'Detecting wallets...' : 'Connect Midnight wallet'}
+              </GlowButton>
+            </div>
+
+            {/* Divider */}
+            <div className="flex items-center gap-3">
+              <div className="h-px flex-1 bg-white/10" />
+              <span className="text-[11px] font-medium text-faint">or</span>
+              <div className="h-px flex-1 bg-white/10" />
+            </div>
+
+            {/* EVM wallets (EIP-6963) */}
+            <div>
+              <h3 className="mb-2 text-xs font-bold uppercase tracking-wider text-faint">
+                EVM wallets (EIP-6963)
+              </h3>
+              {evm.detectedWallets.length > 0 ? (
+                <div className="grid gap-2">
+                  {evm.detectedWallets.map((w) => (
+                    <button
+                      key={w.uuid}
+                      onClick={() => handleEvmConnect(w)}
+                      className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.02] p-3.5 text-left transition-all hover:border-white/20 hover:bg-white/[0.04]"
+                    >
+                      {w.icon ? (
+                        <img
+                          src={w.icon}
+                          alt=""
+                          className="h-9 w-9 shrink-0 rounded-full"
+                        />
+                      ) : (
+                        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white/[0.06] text-muted">
+                          <Wallet size={16} />
+                        </span>
+                      )}
+                      <span className="min-w-0">
+                        <span className="block text-sm font-semibold text-mist">{w.name}</span>
+                        <span className="block text-xs text-muted">Click to connect</span>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-dashed border-white/10 p-4 text-center">
+                  <p className="text-xs text-muted">
+                    No EVM wallets detected. Install{' '}
+                    <a
+                      href="https://metamask.io/download/"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-teal transition-colors hover:text-teal-bright"
+                    >
+                      MetaMask
+                    </a>{' '}
+                    or another Web3 wallet.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Refresh detection button */}
+            <button
+              onClick={() => {
+                runMidnightDetection();
+              }}
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.02] px-3 py-2 text-xs font-medium text-muted transition-colors hover:border-teal/30 hover:text-teal-bright"
             >
-              <Wallet size={16} aria-hidden="true" />
-              {isDetecting ? 'Detecting wallets...' : 'Connect'}
-            </GlowButton>
+              <RefreshCw size={12} aria-hidden="true" />
+              Refresh wallet detection
+            </button>
           </div>
         )}
       </div>

@@ -47,7 +47,7 @@ export function RoleSelection() {
     setRole(role);
     // Persist the role selection before moving to registration
     localStorage.setItem('devmatch:userRole', role);
-    navigate({ view: 'register' });
+    navigate(role === 'team' ? { view: 'register-team' } : { view: 'register' });
   };
 
   return (

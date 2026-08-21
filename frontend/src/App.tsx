@@ -5,6 +5,10 @@
  * the wallet connect modal. All state lives in AppContext; the wallet backend
  * (demo or real Lace/Midnight) is resolved behind the clean interface in
  * lib/wallet-backend.ts.
+ *
+ * Registration gate: unauthenticated users see the RoleSelection screen.
+ * Only after completing registration (setting localStorage keys) can they
+ * access the dashboard or other views.
  */
 import { useEffect } from 'react';
 import { AppProvider, useApp } from './state/AppContext';
@@ -17,6 +21,8 @@ import { MatchTickets } from './components/landing/MatchTickets';
 import { HowItWorks } from './components/landing/HowItWorks';
 import { TrustTiers } from './components/landing/TrustTiers';
 import { RegisterFlow } from './components/register/RegisterFlow';
+import { TeamRegisterFlow } from './components/register/TeamRegisterFlow';
+import { RoleSelection } from './components/register/RoleSelection';
 import { Dashboard } from './components/dashboard/Dashboard';
 import { MatchDetail } from './components/match/MatchDetail';
 
@@ -32,13 +38,26 @@ function LandingPage() {
 }
 
 function Shell() {
-  const { route } = useApp();
+  const { route, isRegistered } = useApp();
 
   useEffect(() => {
     window.scrollTo({ top: 0 });
   }, [route]);
 
   const isDashboard = route.view === 'dashboard';
+  const isRegistering = route.view === 'register' || route.view === 'register-team';
+
+  // Registration gate: unauthenticated users see RoleSelection
+  // (unless they're already on a registration flow)
+  if (!isRegistered && !isRegistering) {
+    return (
+      <div className="relative min-h-screen overflow-x-clip">
+        <BackgroundFX />
+        <RoleSelection />
+        <ConnectModal />
+      </div>
+    );
+  }
 
   return (
     <div className="relative min-h-screen overflow-x-clip">
@@ -48,6 +67,7 @@ function Shell() {
         {route.view === 'landing' && <LandingPage />}
         {route.view === 'dashboard' && <Dashboard />}
         {route.view === 'register' && <RegisterFlow />}
+        {route.view === 'register-team' && <TeamRegisterFlow />}
         {route.view === 'match' && <MatchDetail id={route.id} />}
       </main>
       {!isDashboard && <Footer />}

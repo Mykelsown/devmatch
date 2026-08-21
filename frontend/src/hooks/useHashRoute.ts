@@ -14,6 +14,7 @@ export type Route =
   | { view: 'landing' }
   | { view: 'dashboard' }
   | { view: 'register' }
+  | { view: 'register-team' }
   | { view: 'match'; id: string };
 
 function parseHash(hash: string): Route {
@@ -24,6 +25,8 @@ function parseHash(hash: string): Route {
       return { view: 'dashboard' };
     case 'register':
       return { view: 'register' };
+    case 'register-team':
+      return { view: 'register-team' };
     case 'match': {
       const id = rest[0];
       return id ? { view: 'match', id } : { view: 'dashboard' };
@@ -41,6 +44,8 @@ function encodeRoute(route: Route): string {
       return '#/dashboard';
     case 'register':
       return '#/register';
+    case 'register-team':
+      return '#/register-team';
     case 'match':
       return `#/match/${route.id}`;
   }

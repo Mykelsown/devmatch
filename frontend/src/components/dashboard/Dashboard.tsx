@@ -7,7 +7,7 @@
  * row, and card grid. The sidebar nav tracks which section is active.
  */
 import { useMemo, useState } from 'react';
-import { SearchX } from 'lucide-react';
+import { SearchX, LogOut, Shield, User, Briefcase } from 'lucide-react';
 import { useApp } from '../../state/AppContext';
 import { Sidebar, type SidebarSection } from '../layout/Sidebar';
 import { TopBar } from '../layout/TopBar';
@@ -66,7 +66,7 @@ function FilterPillRow<T extends string>({
 }
 
 export function Dashboard() {
-  const { role, setRole, isGuest, navigate, dashboardSection, setDashboardSection } = useApp();
+  const { role, setRole, isGuest, navigate, dashboardSection, setDashboardSection, logout, wallet, isRegistered } = useApp();
   const [devFilter, setDevFilter] = useState<DevFilter>('All');
   const [reqFilter, setReqFilter] = useState<ReqFilter>('All');
 
@@ -110,6 +110,83 @@ export function Dashboard() {
   const handleSectionNavigate = (section: SidebarSection) => {
     setDashboardSection(section);
   };
+
+  /* Settings section */
+  if (dashboardSection === 'settings') {
+    return (
+      <div className="flex min-h-screen">
+        <Sidebar activeSection={dashboardSection} onNavigate={handleSectionNavigate} />
+        <div className="flex flex-1 flex-col pl-16">
+          <TopBar />
+          <main className="flex-1 overflow-y-auto px-6 py-6">
+            <Reveal>
+              <div className="mx-auto max-w-lg space-y-6">
+                <h2 className="font-display text-2xl font-extrabold tracking-tight text-mist">
+                  Settings
+                </h2>
+
+                {/* Registration status */}
+                <div className="rounded-xl border border-white/[0.06] bg-surface p-5">
+                  <h3 className="text-sm font-bold text-mist">Registration status</h3>
+                  <div className="mt-3 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="flex items-center gap-2 text-sm text-muted">
+                        <User size={15} className="text-teal-bright" aria-hidden="true" />
+                        Role
+                      </span>
+                      <span className="rounded-full bg-teal/15 px-2.5 py-0.5 text-xs font-bold text-teal-bright">
+                        {role === 'dev' ? 'Developer' : 'Team / Recruiter'}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="flex items-center gap-2 text-sm text-muted">
+                        <Shield size={15} className="text-teal-bright" aria-hidden="true" />
+                        Status
+                      </span>
+                      <span className="text-sm font-medium text-teal-bright">
+                        {isRegistered ? 'Registered' : 'Not registered'}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="flex items-center gap-2 text-sm text-muted">
+                        <Briefcase size={15} className="text-muted" aria-hidden="true" />
+                        Wallet
+                      </span>
+                      <span className="text-sm text-muted">
+                        {wallet.status.kind === 'connected' && wallet.snapshot
+                          ? wallet.snapshot.shortAddress
+                          : 'Not connected'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Disconnect and clear registration */}
+                <div className="rounded-xl border border-white/[0.06] bg-surface p-5">
+                  <h3 className="text-sm font-bold text-mist">Account</h3>
+                  <p className="mt-2 text-xs text-muted">
+                    Disconnect your wallet and clear your registration. You will need to
+                    re-register to access the dashboard.
+                  </p>
+                  <button
+                    onClick={() => {
+                      logout();
+                      navigate({ view: 'landing' });
+                    }}
+                    className="mt-4 flex items-center gap-2 rounded-xl border border-terracotta/30 bg-terracotta/10 px-4 py-2.5 text-sm font-medium text-terracotta transition-colors hover:bg-terracotta/20"
+                  >
+                    <LogOut size={15} aria-hidden="true" />
+                    Disconnect and clear registration
+                  </button>
+                </div>
+              </div>
+            </Reveal>
+          </main>
+        </div>
+        <FloatingActionBar />
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen">

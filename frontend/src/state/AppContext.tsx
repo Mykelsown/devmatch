@@ -41,6 +41,7 @@ import type {
   RewardsState,
   Role,
 } from '../lib/types';
+import type { SidebarSection } from '../components/layout/Sidebar';
 
 interface AppContextValue {
   route: Route;
@@ -52,6 +53,16 @@ interface AppContextValue {
 
   role: Role;
   setRole: (role: Role) => void;
+
+  dashboardSection: SidebarSection;
+  setDashboardSection: (section: SidebarSection) => void;
+
+  /** Whether the user has completed registration (stored in localStorage). */
+  isRegistered: boolean;
+  /** Complete the registration flow and persist to localStorage. */
+  completeRegistration: () => void;
+  /** Clear registration state, wallet, and localStorage. */
+  logout: () => void;
 
   profile: RegisteredProfile | null;
   isGuest: boolean;
@@ -78,8 +89,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const wallet = useWallet();
 
   const [walletModalOpen, setWalletModalOpen] = useState(false);
-  const [role, setRole] = useState<Role>('dev');
+  const [role, setRole] = useState<Role>(() => {
+    const stored = localStorage.getItem('devmatch:userRole');
+    return stored === 'team' ? 'team' : 'dev';
+  });
+  const [dashboardSection, setDashboardSection] = useState<SidebarSection>('dashboard');
   const [profile, setProfile] = useState<RegisteredProfile | null>(null);
+
+  // Registration state persisted in localStorage.
+  const [isRegistered, setIsRegistered] = useState(() => {
+    return localStorage.getItem('devmatch:registrationStatus') === 'registered';
+  });
 
   const [revealPhases, setRevealPhases] = useState<Record<string, RevealPhase>>({});
   const [decisions, setDecisions] = useState<Record<string, Decision>>({});
@@ -122,6 +142,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
     (id: string) => matches.find((m) => m.id === id) ?? devMatches.find((m) => m.id === id),
     [matches, devMatches],
   );
+
+  const completeRegistration = useCallback(() => {
+    localStorage.setItem('devmatch:registrationStatus', 'registered');
+    setIsRegistered(true);
+  }, []);
+
+  const logout = useCallback(() => {
+    localStorage.removeItem('devmatch:registrationStatus');
+    localStorage.removeItem('devmatch:userRole');
+    setIsRegistered(false);
+    setProfile(null);
+    setRole('dev');
+    wallet.disconnect();
+  }, [wallet]);
 
   const registerFlow = useCallback(
     async (input: ProfileInput): Promise<RegisteredProfile> => {
@@ -176,6 +210,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setWalletModalOpen,
     role,
     setRole,
+    dashboardSection,
+    setDashboardSection,
+    isRegistered,
+    completeRegistration,
+    logout,
     profile,
     isGuest: profile === null,
     registerFlow,

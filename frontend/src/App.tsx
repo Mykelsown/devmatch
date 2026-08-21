@@ -38,17 +38,19 @@ function Shell() {
     window.scrollTo({ top: 0 });
   }, [route]);
 
+  const isDashboard = route.view === 'dashboard';
+
   return (
     <div className="relative min-h-screen overflow-x-clip">
       <BackgroundFX />
-      <Navbar />
+      {!isDashboard && <Navbar />}
       <main className="relative z-10">
         {route.view === 'landing' && <LandingPage />}
         {route.view === 'dashboard' && <Dashboard />}
         {route.view === 'register' && <RegisterFlow />}
         {route.view === 'match' && <MatchDetail id={route.id} />}
       </main>
-      <Footer />
+      {!isDashboard && <Footer />}
       <ConnectModal />
     </div>
   );

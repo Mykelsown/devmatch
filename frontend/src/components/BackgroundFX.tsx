@@ -23,19 +23,19 @@ function Scribbles() {
     >
       <path
         d="M8 52 C 60 8, 120 96, 180 44 S 300 8, 332 58"
-        stroke="#7DE8D0"
+        stroke="#4DB6AC"
         strokeWidth="3"
         strokeLinecap="round"
       />
       <path
         d="M18 140 C 70 108, 130 184, 200 132 S 300 110, 322 150"
-        stroke="#4FC3E8"
+        stroke="#1A5F6B"
         strokeWidth="2.5"
         strokeLinecap="round"
       />
       <path
         d="M60 190 C 96 166, 140 220, 190 182 S 280 168, 310 196"
-        stroke="#E8EAF6"
+        stroke="#E8EAF0"
         strokeWidth="2"
         strokeLinecap="round"
       />

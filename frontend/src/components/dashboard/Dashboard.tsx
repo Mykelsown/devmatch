@@ -1,167 +1,256 @@
 /**
- * Dashboard — browse / match dashboard.
+ * Dashboard — browse / match dashboard with sidebar shell.
  *
- * Role toggle decides what's browsed: requirements (developer view) or
- * developer profiles (team view). A pill filter bar narrows the grid; cards
- * enter staggered on scroll; the rewards panel sits quietly below.
+ * Uses the Sidebar + TopBar layout. Main content area has two section stacks:
+ * "Available Developers" (shown to teams/recruiters) and "Open Requirements"
+ * (shown to developers), each with a section header, count badge, filter pill
+ * row, and card grid. The sidebar nav tracks which section is active.
  */
 import { useMemo, useState } from 'react';
-import { Building2, SearchX, User } from 'lucide-react';
+import { SearchX } from 'lucide-react';
 import { useApp } from '../../state/AppContext';
-import { FilterBar, type PolicyFilter, type SortMode } from './FilterBar';
-import { RequirementCard } from './RequirementCard';
-import { ProfileCard } from './ProfileCard';
+import { Sidebar, type SidebarSection } from '../layout/Sidebar';
+import { TopBar } from '../layout/TopBar';
+import { DeveloperCard } from '../ui/DeveloperCard';
+import { RequirementCard } from '../ui/RequirementCard';
 import { RewardsPanel } from './RewardsPanel';
-import { GlowButton, GhostButton, SectionTag } from '../ui/primitives';
+import { Chip, GhostButton, GlowButton } from '../ui/primitives';
 import { Reveal } from '../ui/Reveal';
-import type { RevealPolicy, Role } from '../../lib/types';
+import { FloatingActionBar } from '../ui/FloatingActionBar';
+import { SAMPLE_DEVELOPERS, REQUIREMENTS } from '../../lib/data';
 
-const ROLE_TABS: { role: Role; label: string; icon: typeof User }[] = [
-  { role: 'dev', label: "I'm a developer", icon: User },
-  { role: 'team', label: "I'm a team", icon: Building2 },
-];
+const DEV_FILTERS = ['All', 'Full-stack', 'Frontend', 'Backend', 'Smart Contract', 'Available Now'] as const;
+const REQ_FILTERS = ['All', 'Hot', 'New This Week', 'Remote', 'In-Person'] as const;
+
+type DevFilter = typeof DEV_FILTERS[number];
+type ReqFilter = typeof REQ_FILTERS[number];
+
+function SectionHeader({
+  title,
+  count,
+  icon,
+}: {
+  title: string;
+  count: number;
+  icon?: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-center gap-3">
+      {icon}
+      <h2 className="font-display text-lg font-bold text-mist">{title}</h2>
+      <span className="rounded-full bg-teal/15 px-2.5 py-0.5 text-xs font-bold text-teal-bright">
+        {count}
+      </span>
+    </div>
+  );
+}
+
+function FilterPillRow<T extends string>({
+  filters,
+  active,
+  onSelect,
+}: {
+  filters: readonly T[];
+  active: T;
+  onSelect: (filter: T) => void;
+}) {
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {filters.map((f) => (
+        <Chip key={f} on={active === f} onClick={() => onSelect(f)} className="px-3! py-1! text-xs!">
+          {f}
+        </Chip>
+      ))}
+    </div>
+  );
+}
 
 export function Dashboard() {
-  const { role, setRole, matches, devMatches, isGuest, navigate } = useApp();
-  const [stackFilter, setStackFilter] = useState<string[]>([]);
-  const [sort, setSort] = useState<SortMode>('score');
-  const [policyFilter, setPolicyFilter] = useState<PolicyFilter>('all');
+  const { role, setRole, isGuest, navigate, dashboardSection, setDashboardSection } = useApp();
+  const [devFilter, setDevFilter] = useState<DevFilter>('All');
+  const [reqFilter, setReqFilter] = useState<ReqFilter>('All');
 
-  const list = role === 'dev' ? matches : devMatches;
+  // Build developer list from mock data
+  const allDevelopers = useMemo(() => SAMPLE_DEVELOPERS, []);
 
-  const stacks = useMemo(
-    () => Array.from(new Set(list.flatMap((m) => m.subject.stack))).sort(),
-    [list],
-  );
+  // Build requirement list from matches (team view) or mock data
+  const allRequirements = useMemo(() => REQUIREMENTS, []);
 
-  const filtered = useMemo(() => {
-    let out = list;
-    if (stackFilter.length > 0) {
-      out = out.filter((m) => m.subject.stack.some((s) => stackFilter.includes(s)));
+  // Filter developers by selected filter
+  const filteredDevelopers = useMemo(() => {
+    let list = allDevelopers;
+    if (devFilter === 'Full-stack') {
+      list = list.filter((d) => d.stack.length >= 3);
+    } else if (devFilter === 'Frontend') {
+      list = list.filter((d) => d.stack.some((s) => ['React', 'Vue', 'TypeScript'].includes(s)));
+    } else if (devFilter === 'Backend') {
+      list = list.filter((d) => d.stack.some((s) => ['Rust', 'Go', 'Python', 'Node.js'].includes(s)));
+    } else if (devFilter === 'Smart Contract') {
+      list = list.filter((d) => d.stack.some((s) => ['Solidity', 'Smart contracts', 'Zero-knowledge'].includes(s)));
+    } else if (devFilter === 'Available Now') {
+      list = list.filter((d) => d.hours >= 20);
     }
-    if (policyFilter !== 'all') {
-      out = out.filter((m) => m.policy === (policyFilter as RevealPolicy));
-    }
-    if (sort === 'score') {
-      out = [...out].sort((a, b) => b.score - a.score);
-    }
-    return out;
-  }, [list, stackFilter, policyFilter, sort]);
+    return list;
+  }, [allDevelopers, devFilter]);
 
-  const toggleStack = (s: string) =>
-    setStackFilter((cur) =>
-      cur.includes(s) ? cur.filter((x) => x !== s) : [...cur, s],
-    );
+  // Filter requirements by selected filter
+  const filteredRequirements = useMemo(() => {
+    let list = allRequirements;
+    if (reqFilter === 'Hot') {
+      list = list.filter((r) => r.tier === 'green');
+    } else if (reqFilter === 'New This Week') {
+      list = list.filter((r) => r.postedAt.includes('d') || r.postedAt.includes('h'));
+    } else if (reqFilter === 'Remote') {
+      // All are remote for now
+      list = list.filter(() => true);
+    }
+    return list;
+  }, [allRequirements, reqFilter]);
+
+  const handleSectionNavigate = (section: SidebarSection) => {
+    setDashboardSection(section);
+  };
 
   return (
-    <section className="relative z-10 mx-auto max-w-6xl px-5 pb-24 pt-32 sm:pt-36">
-      {/* Header + role toggle */}
-      <Reveal>
-        <div className="flex flex-wrap items-end justify-between gap-5">
-          <div className="max-w-xl">
-            <SectionTag>{role === 'dev' ? 'Developer view' : 'Team view'}</SectionTag>
-            <h2 className="mt-4 font-display text-3xl font-extrabold tracking-tight text-mist sm:text-4xl">
-              {role === 'dev' ? 'Browse matches' : 'Find your developer'}
-            </h2>
-            <p className="mt-2 text-sm text-muted">
-              Compatibility is proven by the DevMatch circuit from two
-              commitments. Scores are real. The data behind them stays hidden.
-            </p>
-          </div>
+    <div className="flex min-h-screen">
+      <Sidebar activeSection={dashboardSection} onNavigate={handleSectionNavigate} />
 
-          <div
-            className="flex items-center gap-1 rounded-full border border-white/10 bg-ink-2/70 p-1 backdrop-blur-md"
-            role="tablist"
-            aria-label="Browse as"
-          >
-            {ROLE_TABS.map(({ role: r, label, icon: Icon }) => (
+      <div className="flex flex-1 flex-col pl-16">
+        <TopBar />
+
+        <main className="flex-1 overflow-y-auto px-6 py-6">
+          {/* Guest banner */}
+          {isGuest && (
+            <Reveal>
+              <div className="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-teal/25 bg-teal/[0.06] px-5 py-4">
+                <p className="text-sm text-muted">
+                  Browsing as a guest. Scores use a demo profile. Register yours to
+                  get <span className="font-semibold text-teal-bright">your</span>{' '}
+                  real matches.
+                </p>
+                <GlowButton size="sm" onClick={() => navigate({ view: 'register' })}>
+                  Register profile
+                </GlowButton>
+              </div>
+            </Reveal>
+          )}
+
+          {/* Role toggle (for switching view) */}
+          <Reveal delay={30}>
+            <div className="mb-6 flex items-center gap-3">
               <button
-                key={r}
-                role="tab"
-                aria-selected={role === r}
-                onClick={() => setRole(r)}
-                className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
-                  role === r ? 'bg-teal text-ink' : 'text-muted hover:text-mist'
+                onClick={() => setRole('dev')}
+                className={`rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
+                  role === 'dev'
+                    ? 'bg-teal text-ink'
+                    : 'border border-white/10 bg-white/[0.03] text-muted hover:text-mist'
                 }`}
               >
-                <Icon size={15} aria-hidden="true" />
-                {label}
+                Developer view
               </button>
-            ))}
-          </div>
-        </div>
-      </Reveal>
+              <button
+                onClick={() => setRole('team')}
+                className={`rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
+                  role === 'team'
+                    ? 'bg-teal text-ink'
+                    : 'border border-white/10 bg-white/[0.03] text-muted hover:text-mist'
+                }`}
+              >
+                Team view
+              </button>
+            </div>
+          </Reveal>
 
-      {/* Guest banner */}
-      {isGuest && role === 'dev' && (
-        <Reveal delay={60}>
-          <div className="mt-6 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-teal/25 bg-teal/[0.06] px-5 py-4">
-            <p className="text-sm text-muted">
-              Browsing as a guest. Scores use a demo profile. Register yours to
-              get <span className="font-semibold text-teal-bright">your</span>{' '}
-              real matches.
-            </p>
-            <GlowButton size="sm" onClick={() => navigate({ view: 'register' })}>
-              Register profile
-            </GlowButton>
-          </div>
-        </Reveal>
-      )}
+          {/* Available Developers section (shown to teams/recruiters) */}
+          <Reveal delay={60}>
+            <section className="mb-10">
+              <SectionHeader
+                title="Available Developers"
+                count={filteredDevelopers.length}
+              />
+              <div className="mt-4">
+                <FilterPillRow
+                  filters={DEV_FILTERS}
+                  active={devFilter}
+                  onSelect={setDevFilter}
+                />
+              </div>
 
-      {/* Filters */}
-      <Reveal delay={100}>
-        <div className="mt-6">
-          <FilterBar
-            stacks={stacks}
-            stackFilter={stackFilter}
-            toggleStack={toggleStack}
-            sort={sort}
-            setSort={setSort}
-            policyFilter={policyFilter}
-            setPolicyFilter={setPolicyFilter}
-          />
-        </div>
-      </Reveal>
+              {filteredDevelopers.length > 0 ? (
+                <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {filteredDevelopers.map((dev) => (
+                    <DeveloperCard
+                      key={dev.id}
+                      profile={dev}
+                      onClick={() => navigate({ view: 'dashboard' })}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="mt-5 flex flex-col items-center rounded-xl border border-dashed border-white/15 px-6 py-12 text-center">
+                  <SearchX size={32} className="text-faint" aria-hidden="true" />
+                  <h3 className="mt-3 text-sm font-bold text-mist">No developers found</h3>
+                  <p className="mt-1 text-xs text-muted">
+                    Try adjusting your filters.
+                  </p>
+                  <GhostButton className="mt-4" onClick={() => setDevFilter('All')}>
+                    Clear filters
+                  </GhostButton>
+                </div>
+              )}
+            </section>
+          </Reveal>
 
-      {/* Grid */}
-      {filtered.length > 0 ? (
-        <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map((m, i) =>
-            role === 'dev' ? (
-              <RequirementCard key={m.id} match={m} index={i} />
-            ) : (
-              <ProfileCard key={m.id} match={m} index={i} />
-            ),
-          )}
-        </div>
-      ) : (
-        <Reveal>
-          <div className="mt-8 flex flex-col items-center rounded-3xl border border-dashed border-white/15 px-6 py-16 text-center">
-            <SearchX size={36} className="text-faint" aria-hidden="true" />
-            <h3 className="mt-4 font-display text-lg font-bold text-mist">No matches found</h3>
-            <p className="mt-1 max-w-sm text-sm text-muted">
-              Nothing matches those filters. Clear them to see everything again.
-            </p>
-            <GhostButton
-              className="mt-5"
-              onClick={() => {
-                setStackFilter([]);
-                setPolicyFilter('all');
-                setSort('score');
-              }}
-            >
-              Clear filters
-            </GhostButton>
-          </div>
-        </Reveal>
-      )}
+          {/* Open Requirements section (shown to developers) */}
+          <Reveal delay={90}>
+            <section className="mb-10">
+              <SectionHeader
+                title="Open Requirements"
+                count={filteredRequirements.length}
+              />
+              <div className="mt-4">
+                <FilterPillRow
+                  filters={REQ_FILTERS}
+                  active={reqFilter}
+                  onSelect={setReqFilter}
+                />
+              </div>
 
-      {/* Rewards */}
-      <Reveal delay={60}>
-        <div className="mx-auto mt-12 max-w-2xl">
-          <RewardsPanel />
-        </div>
-      </Reveal>
-    </section>
+              {filteredRequirements.length > 0 ? (
+                <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {filteredRequirements.map((req) => (
+                    <RequirementCard
+                      key={req.id}
+                      requirement={req}
+                      onClick={() => navigate({ view: 'dashboard' })}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="mt-5 flex flex-col items-center rounded-xl border border-dashed border-white/15 px-6 py-12 text-center">
+                  <SearchX size={32} className="text-faint" aria-hidden="true" />
+                  <h3 className="mt-3 text-sm font-bold text-mist">No requirements found</h3>
+                  <p className="mt-1 text-xs text-muted">
+                    Try adjusting your filters.
+                  </p>
+                  <GhostButton className="mt-4" onClick={() => setReqFilter('All')}>
+                    Clear filters
+                  </GhostButton>
+                </div>
+              )}
+            </section>
+          </Reveal>
+
+          {/* Rewards */}
+          <Reveal delay={120}>
+            <div className="mx-auto max-w-2xl">
+              <RewardsPanel />
+            </div>
+          </Reveal>
+        </main>
+      </div>
+
+      <FloatingActionBar />
+    </div>
   );
 }

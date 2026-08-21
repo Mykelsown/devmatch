@@ -43,8 +43,8 @@ export function ScoreTag({
       >
         <defs>
           <linearGradient id={uid} x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#4FC3E8" />
-            <stop offset="100%" stopColor="#7DE8D0" />
+            <stop offset="0%" stopColor="#1A5F6B" />
+            <stop offset="100%" stopColor="#4DB6AC" />
           </linearGradient>
         </defs>
         <circle

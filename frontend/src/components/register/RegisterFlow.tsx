@@ -74,7 +74,7 @@ const YEARS_PRESETS = [0, 2, 5, 8, 12];
 const HOURS_PRESETS = [10, 20, 30, 40];
 
 export function RegisterFlow() {
-  const { wallet, setWalletModalOpen, registerFlow, navigate } = useApp();
+  const { wallet, setWalletModalOpen, registerFlow, navigate, completeRegistration } = useApp();
   const connected = wallet.status.kind === 'connected';
 
   const [step, setStep] = useState(0);
@@ -177,6 +177,7 @@ export function RegisterFlow() {
       };
       const res = await registerFlow(input);
       setResult(res);
+      completeRegistration();
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : String(err));
     } finally {

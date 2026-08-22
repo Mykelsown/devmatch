@@ -6,7 +6,7 @@
  * mismatch).
  */
 import type { WalletStatus } from '../hooks/useMidnight';
-import { detectLace } from '../lib/lace';
+import { detectWallet } from '../lib/lace';
 import { NETWORK_ID } from '../config';
 
 export function WalletConnect({
@@ -18,7 +18,7 @@ export function WalletConnect({
   onConnect: () => void;
   onDisconnect: () => void;
 }) {
-  const laceInstalled = detectLace() !== undefined;
+  const laceInstalled = detectWallet('lace') !== undefined;
 
   return (
     <section className="card wallet-card">

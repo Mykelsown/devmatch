@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import { useApp } from '../../state/AppContext';
 import { GlowButton, GhostButton } from '../ui/primitives';
-import { detectWalletAsync } from '../../lib/lace';
+import { discoverWalletsAsync } from '../../lib/lace';
 import { useEvmWallet, type EvmWalletProvider } from '../../hooks/useEvmWallet';
 import { NETWORK_ID } from '../../config';
 import type { BackendChoice } from '../../lib/wallet-backend';
@@ -39,12 +39,9 @@ export function ConnectModal() {
 
   const runMidnightDetection = useCallback(async () => {
     setDetectionState('detecting');
-    const [lace, oneAm] = await Promise.all([
-      detectWalletAsync('lace'),
-      detectWalletAsync('1am'),
-    ]);
-    setLaceInstalled(lace !== undefined);
-    setOneAmInstalled(oneAm !== undefined);
+    const wallets = await discoverWalletsAsync();
+    setLaceInstalled(wallets.some((w) => w.rdns?.toLowerCase().includes('lace')));
+    setOneAmInstalled(wallets.some((w) => w.rdns?.toLowerCase().includes('1am')));
     setDetectionState('detected');
   }, []);
 

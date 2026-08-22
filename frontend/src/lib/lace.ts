@@ -1,28 +1,18 @@
 /**
  * Wallet integration via the Midnight dApp connector API.
  *
- * Both Lace and 1AM wallets inject their `InitialAPI` at
- * `window.midnight[WALLET_ID]`. We call `connect(networkId)` to get
- * a `ConnectedAPI` for the wallet session.
+ * Wallets inject their `InitialAPI` under `window.midnight`, keyed by
+ * a UUID chosen by the extension. We iterate all values and identify
+ * wallets by their `rdns` field (e.g. "io.hot-lace.dev" for Lace).
  *
  * The extension API injects asynchronously after page load. Sync detection
- * (`detectWallet`) may return `undefined` if called before injection.
- * Use `detectWalletAsync` for reliable detection with polling.
+ * (`discoverWallets`) may return an empty array if called before injection.
+ * Use `discoverWalletsAsync` for reliable detection with polling.
  */
 import type { ConnectedAPI, InitialAPI } from '@midnight-ntwrk/dapp-connector-api';
 
-/** Wallet IDs registered under `window.midnight`. */
-export const LACE_WALLET_ID = 'mnLace';
-export const ONAM_WALLET_ID = 'mn1am';
-
 /** Supported wallet types. */
 export type WalletType = 'lace' | '1am';
-
-/** Map wallet type to its window.midnight key. */
-export const WALLET_IDS: Record<WalletType, string> = {
-  lace: LACE_WALLET_ID,
-  '1am': ONAM_WALLET_ID,
-};
 
 export type WalletErrorKind =
   | 'not-installed'
@@ -40,18 +30,61 @@ export class WalletError extends Error {
   }
 }
 
-/** Detect whether the Lace wallet is installed and exposes the dApp connector. */
-export function detectLace(): InitialAPI | undefined {
-  return window.midnight?.[LACE_WALLET_ID];
+/* ── Discovery: iterate window.midnight, match by rdns ──────────────────── */
+
+/**
+ * Discover all injected Midnight wallets by iterating the namespace.
+ * Do NOT look up by key name: extension keys are not guaranteed.
+ */
+function discoverWallets(): InitialAPI[] {
+  return Object.values((window as any).midnight ?? {});
+}
+
+/**
+ * Find a wallet matching a specific type hint (lace or 1am).
+ * Falls back to undefined if no rdns match.
+ */
+function findWalletByType(walletType: WalletType): InitialAPI | undefined {
+  const wallets = discoverWallets();
+  const keyword = walletType === 'lace' ? 'lace' : '1am';
+  return wallets.find((w) => w.rdns?.toLowerCase().includes(keyword));
+}
+
+/**
+ * Poll window.midnight for any Midnight wallet.
+ * Extensions inject asynchronously after page load.
+ */
+export async function discoverWalletsAsync(
+  { maxAttempts = 10, intervalMs = 300 }: { maxAttempts?: number; intervalMs?: number } = {},
+): Promise<InitialAPI[]> {
+  for (let i = 0; i < maxAttempts; i++) {
+    const found = discoverWallets();
+    if (found.length > 0) return found;
+    if (i < maxAttempts - 1) {
+      await new Promise<void>((resolve) => setTimeout(resolve, intervalMs));
+    }
+  }
+  return [];
 }
 
 /**
  * Connect to a wallet on the given network.
  * Throws a `WalletError` with a friendly `kind` for the UI to display.
  */
-export async function connectWallet(networkId: string, walletType: WalletType): Promise<ConnectedAPI> {
-  const walletApi = detectWallet(walletType);
+export async function connectWallet(
+  networkId: string,
+  walletType: WalletType,
+): Promise<ConnectedAPI> {
   const walletName = walletType === 'lace' ? 'Lace' : '1AM';
+
+  // Try synchronous discovery first, then fall back to async polling.
+  let walletApi = findWalletByType(walletType);
+  if (!walletApi) {
+    const wallets = await discoverWalletsAsync();
+    const keyword = walletType === 'lace' ? 'lace' : '1am';
+    walletApi = wallets.find((w) => w.rdns?.toLowerCase().includes(keyword));
+  }
+
   if (!walletApi) {
     throw new WalletError(
       'not-installed',
@@ -62,10 +95,10 @@ export async function connectWallet(networkId: string, walletType: WalletType): 
   try {
     const api = await walletApi.connect(networkId);
 
-    // Confirm the wallet is actually on the network we asked for.
-    const config = await api.getConfiguration();
-    if (config.networkId !== networkId) {
-      const detected = config.networkId || 'unknown';
+    // Verify the wallet is actually on the network we asked for.
+    const connectionStatus = await api.getConnectionStatus();
+    if (connectionStatus.status === 'connected' && connectionStatus.networkId !== networkId) {
+      const detected = connectionStatus.networkId || 'unknown';
       const friendlyNames: Record<string, string> = {
         preview: 'Preview',
         preprod: 'Preprod',
@@ -78,6 +111,19 @@ export async function connectWallet(networkId: string, walletType: WalletType): 
         `Your wallet is set to ${detectedLabel}. Switch to ${requiredLabel} in your ${walletName} wallet settings.`,
       );
     }
+
+    // Hint usage with typeof guard (Lace 4.0.1 compatibility:
+    // Lace declares hintUsage as own property with value undefined,
+    // so 'hintUsage in api' would pass but then throw).
+    if (typeof api.hintUsage === 'function') {
+      await api.hintUsage([
+        'getShieldedAddresses',
+        'getProvingProvider',
+        'balanceUnsealedTransaction',
+        'submitTransaction',
+      ]);
+    }
+
     return api;
   } catch (err) {
     if (err instanceof WalletError) throw err;
@@ -91,17 +137,14 @@ export async function connectWallet(networkId: string, walletType: WalletType): 
 
 /** Detect whether a specific wallet is installed (synchronous snapshot). */
 export function detectWallet(walletType: WalletType): InitialAPI | undefined {
-  const walletId = WALLET_IDS[walletType];
-  return window.midnight?.[walletId];
+  const keyword = walletType === 'lace' ? 'lace' : '1am';
+  return discoverWallets().find((w) => w.rdns?.toLowerCase().includes(keyword));
 }
 
 /**
  * Async wallet detection with polling.
- *
- * The Midnight dApp connector API injects `window.midnight[WALLET_ID]`
- * asynchronously after page load. This function polls up to `maxAttempts`
- * times with `intervalMs` gaps (default: 10 attempts, 200ms = 2s budget)
- * before declaring the wallet not installed.
+ * The Midnight dApp connector API injects wallets asynchronously after page load.
+ * Polls up to maxAttempts times before returning undefined.
  */
 export async function detectWalletAsync(
   walletType: WalletType,

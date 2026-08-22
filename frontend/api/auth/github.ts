@@ -42,8 +42,8 @@ export default async function handler(req: Request) {
 
   let code: string;
   try {
-    const body = await req.json();
-    code = body.code;
+    const body = (await req.json()) as { code?: string };
+    code = body.code ?? '';
   } catch {
     return Response.json(
       { error: 'invalid_request', error_description: 'Request body must be valid JSON with a "code" field.' },

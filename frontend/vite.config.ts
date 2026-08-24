@@ -18,6 +18,18 @@ export default defineConfig({
   build: {
     target: 'es2022',
   },
+  resolve: {
+    alias: {
+      // Vite externalizes Node's built-in `events` module in the browser,
+      // but abstract-level (used by midnight-js-level-private-state-provider)
+      // does `class AbstractLevel extends EventEmitter`. Without a real
+      // polyfill this resolves to `undefined` and the entire module graph
+      // crashes with "Class extends value undefined is not a constructor or null",
+      // rendering the page blank. The `events` npm package is a browser-
+      // compatible EventEmitter polyfill.
+      events: 'events',
+    },
+  },
   optimizeDeps: {
     // The midnight-js stack ships ESM-only WASM modules; keep them external to
     // avoid esbuild pre-bundling issues.
@@ -33,6 +45,9 @@ export default defineConfig({
       // into the pre-bundler gives esbuild the chance to emit the interop
       // default export the browser needs.
       'object-inspect',
+      // Force the events polyfill into the pre-bundler so it resolves
+      // correctly for CJS packages (abstract-level, level-supports, etc.).
+      'events',
     ],
   },
 });

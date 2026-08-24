@@ -28,6 +28,7 @@
     "@midnight-ntwrk/midnight-js-types": "4.1.1",
     "@midnight-ntwrk/midnight-js-utils": "4.1.1",
     "buffer": "^6.0.3",
+    "events": "^3.3.0",
     "lucide-react": "^1.31.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"

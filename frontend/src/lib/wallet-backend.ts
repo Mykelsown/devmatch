@@ -170,19 +170,40 @@ abstract class MidnightWalletBackendBase implements WalletBackend {
       years: input.years,
       hours: input.hours,
     });
-    const result = await contract.callTx.registerProfile(
-      commitment,
-      TIER_TO_CONTRACT[input.tier] as number,
-      POLICY_TO_CONTRACT[input.policy] as number,
-    );
 
-    return {
-      commitment: bytesToHex(commitment),
-      txId: result.public.txId,
-      tier: input.tier,
-      policy: input.policy,
-      network: NETWORK_ID,
-    };
+    try {
+      const result = await contract.callTx.registerProfile(
+        commitment,
+        TIER_TO_CONTRACT[input.tier] as number,
+        POLICY_TO_CONTRACT[input.policy] as number,
+      );
+
+      return {
+        commitment: bytesToHex(commitment),
+        txId: result.public.txId,
+        tier: input.tier,
+        policy: input.policy,
+        network: NETWORK_ID,
+      };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+
+      // Proof server connectivity errors surface here for 1AM users.
+      if (
+        msg.includes('ECONNREFUSED') ||
+        msg.includes('Failed to fetch') ||
+        msg.includes('proof server') ||
+        msg.includes('6300')
+      ) {
+        throw new Error(
+          'Could not reach the local proof server. ' +
+          'Run: docker run -p 6300:6300 midnightntwrk/proof-server:8.1.0 midnight-proof-server -v ' +
+          'then try again.',
+        );
+      }
+
+      throw err;
+    }
   }
 }
 

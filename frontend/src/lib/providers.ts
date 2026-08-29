@@ -50,15 +50,37 @@ export async function createProviders(
   // spec's "proof generated locally in the browser", no proof server needed).
   // Set VITE_PROOF_MODE=http to delegate proving to the local docker
   // proof-server instead (matches the Level 1 deploy flow).
+  //
+  // If the wallet does not expose a proverServerUri (as with 1AM),
+  // dappConnectorProofProvider internally calls new URL(undefined)
+  // and throws "Failed to construct URL: Invalid URL". Detect that
+  // case here and fall back to the http proof server instead.
   let proofProvider: ProofProvider;
   if (PROOF_MODE === 'http') {
     proofProvider = httpClientProofProvider(PROOF_SERVER_URL, zkConfigProvider);
   } else {
-    proofProvider = await dappConnectorProofProvider(
-      api,
-      zkConfigProvider,
-      CostModel.initialCostModel(),
-    );
+    let walletSupportsInWalletProving = false;
+    try {
+      const config = await api.getConfiguration();
+      walletSupportsInWalletProving =
+        typeof config?.proverServerUri === 'string' &&
+        config.proverServerUri.length > 0;
+    } catch {
+      // getConfiguration() is not available on this wallet.
+      walletSupportsInWalletProving = false;
+    }
+
+    if (walletSupportsInWalletProving) {
+      proofProvider = await dappConnectorProofProvider(
+        api,
+        zkConfigProvider,
+        CostModel.initialCostModel(),
+      );
+    } else {
+      // Wallet does not expose a prover server URI (e.g. 1AM wallet).
+      // Fall back to the local http proof server.
+      proofProvider = httpClientProofProvider(PROOF_SERVER_URL, zkConfigProvider);
+    }
   }
 
   return {

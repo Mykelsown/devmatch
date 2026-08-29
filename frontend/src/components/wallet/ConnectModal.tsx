@@ -94,7 +94,7 @@ export function ConnectModal() {
     {
       key: '1am',
       title: '1AM',
-      desc: `Connect to the ${NETWORK_ID} network through the 1AM wallet extension.`,
+      desc: `Connect to the ${NETWORK_ID} network through the 1AM wallet extension. Requires a running local proof server (docker).`,
       available: oneAmInstalled,
       note: isDetecting ? 'Detecting...' : oneAmInstalled ? undefined : 'Extension not detected',
       icon: <Shield size={18} aria-hidden="true" />,

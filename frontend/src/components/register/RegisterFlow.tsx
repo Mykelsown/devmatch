@@ -137,8 +137,18 @@ export function RegisterFlow() {
           console.error('GitHub verification failed:', err);
           setVerifying(false);
           setOauthCallbackPending(false);
-          // Fall back to mock verification on error
-          setForm((f) => ({ ...f, tier: 'green', github: 'verified-user' }));
+          // Show the real error. Do NOT silently grant green tier on failure.
+          // The user can retry or skip to yellow tier.
+          const message = err instanceof Error ? err.message : String(err);
+          setSubmitError(
+            `GitHub verification failed: ${message}. Try again or skip to Yellow tier.`,
+          );
+          // Clean up the URL so the code param does not confuse a retry
+          window.history.replaceState(
+            {},
+            '',
+            window.location.pathname + window.location.hash,
+          );
         });
       return;
     }
@@ -147,13 +157,12 @@ export function RegisterFlow() {
     try {
       initiateGitHubOAuth();
     } catch (err) {
-      console.error('Failed to start GitHub OAuth:', err);
-      // Fall back to mock verification if OAuth not configured
-      setVerifying(true);
-      verifyTimer.current = window.setTimeout(() => {
-        setVerifying(false);
-        setForm((f) => ({ ...f, tier: 'green', github: 'verified-user' }));
-      }, 1600);
+      // OAuth is not configured (no VITE_GITHUB_CLIENT_ID set).
+      // Show a clear message rather than silently mocking a green verification.
+      const message = err instanceof Error ? err.message : String(err);
+      setSubmitError(
+        `GitHub verification not available: ${message}. Skip to Yellow tier or contact support.`,
+      );
     }
   };
 

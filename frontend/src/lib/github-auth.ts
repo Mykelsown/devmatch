@@ -26,15 +26,16 @@ function generateState(): string {
     .join('');
 }
 
-/** Store state in sessionStorage for CSRF validation. */
+// Use localStorage instead of sessionStorage. sessionStorage is cleared when
+// the browser navigates away from the page (e.g. to github.com for OAuth).
+// localStorage survives navigation and is consumed (deleted) after one use.
 function storeState(state: string): void {
-  sessionStorage.setItem('github_oauth_state', state);
+  localStorage.setItem('devmatch:github_oauth_state', state);
 }
 
-/** Retrieve and clear the stored state. */
 function consumeState(): string | null {
-  const state = sessionStorage.getItem('github_oauth_state');
-  sessionStorage.removeItem('github_oauth_state');
+  const state = localStorage.getItem('devmatch:github_oauth_state');
+  localStorage.removeItem('devmatch:github_oauth_state');
   return state;
 }
 

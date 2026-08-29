@@ -29,9 +29,9 @@ export function getGitHubRedirectUri(): string {
     // Include the hash fragment so the router restores the register view
     // when GitHub redirects back. Without this, the app boots at the root
     // and the callback code is never processed.
-    return `${window.location.origin}/auth/callback#/register`;
+    return `${window.location.origin}/auth/callback`;
   }
-  return 'http://localhost:5173/auth/callback#/register';
+  return 'http://localhost:5173/auth/callback';
 }
 
 /** Deployed DevMatch `dev_profile` contract address (Preview). */

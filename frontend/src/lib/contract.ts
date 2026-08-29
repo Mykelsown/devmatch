@@ -48,6 +48,15 @@ export async function connectToDeployedContract(
 
   const compiledContract = CompiledContract.make('DevMatchContract', Contract).pipe(
     CompiledContract.withWitnesses(witnesses),
+    // withCompiledFileAssets tells the SDK where to find the ZK proving keys
+    // and ZKIR files for this circuit. Without this, the proof provider cannot
+    // locate registerProfile.prover and registerProfile.zkir, and the WASM
+    // runtime receives an incomplete proof input, causing Transaction.deserialize
+    // to fail with "expected instance of Wn".
+    // The files are served from /zk/ by Vite (copied there by prepare:contract).
+    // FetchZkConfigProvider base URL is window.location.origin + '/zk', so
+    // passing '' here means "use the base URL directly".
+    CompiledContract.withCompiledFileAssets(''),
   );
 
   // The effect-based SDK types make the browser-side provider set awkward to

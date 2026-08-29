@@ -38,7 +38,7 @@ function LandingPage() {
 }
 
 function Shell() {
-  const { route, isRegistered } = useApp();
+  const { route, isRegistered, oauthCallbackPending } = useApp();
 
   useEffect(() => {
     window.scrollTo({ top: 0 });
@@ -48,8 +48,8 @@ function Shell() {
   const isRegistering = route.view === 'register' || route.view === 'register-team';
 
   // Registration gate: unauthenticated users see RoleSelection
-  // (unless they're already on a registration flow)
-  if (!isRegistered && !isRegistering) {
+  // (unless they're already on a registration flow or returning from OAuth)
+  if (!isRegistered && !isRegistering && !oauthCallbackPending) {
     return (
       <div className="relative min-h-screen overflow-x-clip">
         <BackgroundFX />

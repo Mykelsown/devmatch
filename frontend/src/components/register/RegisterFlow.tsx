@@ -74,7 +74,7 @@ const YEARS_PRESETS = [0, 2, 5, 8, 12];
 const HOURS_PRESETS = [10, 20, 30, 40];
 
 export function RegisterFlow() {
-  const { wallet, setWalletModalOpen, registerFlow, navigate, completeRegistration } = useApp();
+  const { wallet, setWalletModalOpen, registerFlow, navigate, completeRegistration, setOauthCallbackPending } = useApp();
   const connected = wallet.status.kind === 'connected';
 
   const [step, setStep] = useState(0);
@@ -129,12 +129,14 @@ export function RegisterFlow() {
           storeGitHubVerification(profile, skills);
           setForm((f) => ({ ...f, tier: 'green', github: profile.login }));
           setVerifying(false);
-          // Clean up the URL
-          window.history.replaceState({}, '', window.location.pathname);
+          setOauthCallbackPending(false);
+          // Clean up the URL, preserving the hash route
+          window.history.replaceState({}, '', window.location.pathname + window.location.hash);
         })
         .catch((err) => {
           console.error('GitHub verification failed:', err);
           setVerifying(false);
+          setOauthCallbackPending(false);
           // Fall back to mock verification on error
           setForm((f) => ({ ...f, tier: 'green', github: 'verified-user' }));
         });

@@ -64,6 +64,10 @@ interface AppContextValue {
   /** Clear registration state, wallet, and localStorage. */
   logout: () => void;
 
+  /** Whether a GitHub OAuth callback is pending processing. */
+  oauthCallbackPending: boolean;
+  setOauthCallbackPending: (pending: boolean) => void;
+
   profile: RegisteredProfile | null;
   isGuest: boolean;
   registerFlow: (input: ProfileInput) => Promise<RegisteredProfile>;
@@ -100,6 +104,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [isRegistered, setIsRegistered] = useState(() => {
     return localStorage.getItem('devmatch:registrationStatus') === 'registered';
   });
+
+  // On mount, check if we have a GitHub OAuth code in the URL.
+  // If so, we need to show the register flow to process it.
+  const [oauthCallbackPending, setOauthCallbackPending] = useState<boolean>(() => {
+    const params = new URLSearchParams(window.location.search);
+    return Boolean(params.get('code') && params.get('state'));
+  });
+
+  // If returning from GitHub OAuth, force-navigate to the register view.
+  useEffect(() => {
+    if (oauthCallbackPending && route.view !== 'register') {
+      navigate({ view: 'register' });
+    }
+  }, []); // run once on mount only
 
   const [revealPhases, setRevealPhases] = useState<Record<string, RevealPhase>>({});
   const [decisions, setDecisions] = useState<Record<string, Decision>>({});
@@ -215,6 +233,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     isRegistered,
     completeRegistration,
     logout,
+    oauthCallbackPending,
+    setOauthCallbackPending,
     profile,
     isGuest: profile === null,
     registerFlow,

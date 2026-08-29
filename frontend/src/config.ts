@@ -26,9 +26,12 @@ export function getGitHubRedirectUri(): string {
     return import.meta.env.VITE_GITHUB_REDIRECT_URI;
   }
   if (typeof window !== 'undefined') {
-    return `${window.location.origin}/auth/callback`;
+    // Include the hash fragment so the router restores the register view
+    // when GitHub redirects back. Without this, the app boots at the root
+    // and the callback code is never processed.
+    return `${window.location.origin}/auth/callback#/register`;
   }
-  return 'http://localhost:5173/auth/callback';
+  return 'http://localhost:5173/auth/callback#/register';
 }
 
 /** Deployed DevMatch `dev_profile` contract address (Preview). */

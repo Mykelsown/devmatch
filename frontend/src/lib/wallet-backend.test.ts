@@ -253,6 +253,39 @@ describe('OneAmWalletBackend', () => {
     const backend = new OneAmWalletBackend();
     await expect(backend.registerProfile(INPUT)).rejects.toThrow(/connect/i);
   });
+
+  it('registerProfile() wraps proof server connectivity errors with a clear message', async () => {
+    callTx.mockRejectedValue(new Error('fetch failed: ECONNREFUSED 127.0.0.1:6300'));
+    stubMidnightFlow();
+
+    const backend = new OneAmWalletBackend();
+    await backend.connect();
+    await expect(backend.registerProfile(INPUT)).rejects.toThrow(
+      /Could not reach the local proof server/i,
+    );
+  });
+
+  it('registerProfile() wraps Failed to fetch errors with a clear message', async () => {
+    callTx.mockRejectedValue(new Error('Failed to fetch'));
+    stubMidnightFlow();
+
+    const backend = new OneAmWalletBackend();
+    await backend.connect();
+    await expect(backend.registerProfile(INPUT)).rejects.toThrow(
+      /Could not reach the local proof server/i,
+    );
+  });
+
+  it('registerProfile() re-throws non-proof-server errors unchanged', async () => {
+    callTx.mockRejectedValue(new Error('ledger sync timeout'));
+    stubMidnightFlow();
+
+    const backend = new OneAmWalletBackend();
+    await backend.connect();
+    await expect(backend.registerProfile(INPUT)).rejects.toThrow(
+      /ledger sync timeout/i,
+    );
+  });
 });
 
 describe('resolveBackend', () => {

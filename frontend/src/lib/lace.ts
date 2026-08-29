@@ -97,19 +97,21 @@ export async function connectWallet(
 
     // Verify the wallet is actually on the network we asked for.
     const connectionStatus = await api.getConnectionStatus();
-    if (connectionStatus.status === 'connected' && connectionStatus.networkId !== networkId) {
-      const detected = connectionStatus.networkId || 'unknown';
-      const friendlyNames: Record<string, string> = {
-        preview: 'Preview',
-        preprod: 'Preprod',
-        mainnet: 'Mainnet',
-      };
-      const detectedLabel = friendlyNames[detected] ?? detected;
-      const requiredLabel = friendlyNames[networkId] ?? networkId;
-      throw new WalletError(
-        'network-mismatch',
-        `Your wallet is set to ${detectedLabel}. Switch to ${requiredLabel} in your ${walletName} wallet settings.`,
-      );
+    if (connectionStatus.status === 'connected') {
+      const detectedNetworkId = connectionStatus.networkId ?? '';
+      if (detectedNetworkId && detectedNetworkId !== networkId) {
+        const friendlyNames: Record<string, string> = {
+          preview: 'Preview',
+          preprod: 'Preprod',
+          mainnet: 'Mainnet',
+        };
+        const detectedLabel = friendlyNames[detectedNetworkId] ?? detectedNetworkId;
+        const requiredLabel = friendlyNames[networkId] ?? networkId;
+        throw new WalletError(
+          'network-mismatch',
+          `Your wallet is set to ${detectedLabel}. Switch to ${requiredLabel} in your ${walletName} wallet settings.`,
+        );
+      }
     }
 
     // Hint usage with typeof guard (Lace 4.0.1 compatibility:
@@ -127,11 +129,26 @@ export async function connectWallet(
     return api;
   } catch (err) {
     if (err instanceof WalletError) throw err;
+
+    const msg = err instanceof Error ? err.message : String(err);
+
+    // URL construction errors mean the wallet cannot resolve the network endpoint.
+    // This usually means the extension does not support the requested network name.
+    if (msg.toLowerCase().includes('invalid url') || msg.toLowerCase().includes('failed to construct')) {
+      throw new WalletError(
+        'network-mismatch',
+        `The ${walletName} wallet could not connect to the "${networkId}" network. ` +
+        `Make sure your ${walletName} extension is set to the correct network ` +
+        `(Preview or Preprod) and is fully up to date.`,
+      );
+    }
+
     // Wallet rejects the connect promise when the user dismisses the dialog.
-    if (err instanceof Error && /reject|denied|dismiss|user/gi.test(err.message)) {
+    if (/reject|denied|dismiss|user/gi.test(msg)) {
       throw new WalletError('user-rejected', 'Connection request rejected in the wallet.');
     }
-    throw new WalletError('unknown', err instanceof Error ? err.message : String(err));
+
+    throw new WalletError('unknown', msg);
   }
 }
 

@@ -11,12 +11,13 @@ import {
   type WalletBackend,
 } from '../lib/wallet-backend';
 import type { ProfileInput, RegisterResult, WalletSnapshot } from '../lib/types';
+import { WalletError, type WalletErrorKind } from '../lib/lace';
 
 export type WalletStatus =
   | { kind: 'idle' }
   | { kind: 'connecting' }
   | { kind: 'connected' }
-  | { kind: 'error'; message: string };
+  | { kind: 'error'; message: string; errorKind?: WalletErrorKind };
 
 export interface WalletController {
   backend: WalletBackend;
@@ -45,6 +46,7 @@ export function useWallet(): WalletController {
       setStatus({
         kind: 'error',
         message: err instanceof Error ? err.message : String(err),
+        ...(err instanceof WalletError ? { errorKind: err.kind } : {}),
       });
     }
   }, [backend]);

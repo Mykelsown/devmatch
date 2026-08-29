@@ -251,12 +251,18 @@ export function ConnectModal() {
 
             {/* Error messages */}
             {status.kind === 'error' && (
-              <p
+              <div
                 role="alert"
                 className="rounded-xl border border-red-400/25 bg-red-400/[0.07] p-3 text-xs leading-relaxed text-red-300"
               >
-                {status.message}
-              </p>
+                <p>{status.message}</p>
+                {status.errorKind === 'network-mismatch' && (
+                  <p className="mt-2 text-red-400/80">
+                    Open your wallet extension, go to Settings, and switch to{' '}
+                    <span className="font-semibold text-red-300">{NETWORK_ID}</span>.
+                  </p>
+                )}
+              </div>
             )}
             {evm.error && (
               <p

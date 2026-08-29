@@ -60,9 +60,6 @@ export const PROOF_SERVER_URL: string =
 export const PROOF_MODE: 'wallet' | 'http' =
   import.meta.env.VITE_PROOF_MODE === 'http' ? 'http' : 'wallet';
 
-/** Where the ZK artifacts (zkir + keys) are served from (Vite public dir). */
-export const ZK_BASE_URL: string = '/zk';
-
 /**
  * Attester service base URL (Level 3 prep). The GitHub OAuth button redirects
  * here; the returned `attestedProfileHash` is stored client-side.

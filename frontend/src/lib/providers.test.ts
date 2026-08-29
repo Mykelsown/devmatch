@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 /**
  * Unit tests for the createProviders function in lib/providers.ts.
  *
@@ -13,7 +14,7 @@ import type { WalletSnapshot } from './lace';
 // Use vi.hoisted so the class is available in hoisted vi.mock calls.
 const { MockFetchZkConfigProvider } = vi.hoisted(() => {
   class MockFetchZkConfigProvider {
-    constructor(public _url: string) {}
+    constructor(public _url: string, public _fetch?: typeof fetch) {}
   }
   return { MockFetchZkConfigProvider };
 });

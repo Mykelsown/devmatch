@@ -1,14 +1,26 @@
 /**
- * Assembles the `MidnightProviders` used by the browser frontend.
+ * Assembles the MidnightProviders used by the browser frontend.
  *
- * All providers here are browser-compatible:
- *   - private state  -> `levelPrivateStateProvider` (IndexedDB via `level`)
- *   - public data    -> `indexerPublicDataProvider` (GraphQL + WS)
- *   - zk artifacts   -> `FetchZkConfigProvider` (served from /zk)
- *   - proofs         -> in-wallet proving via the Lace dApp connector
- *                       (`dappConnectorProofProvider`), or the local docker
- *                       proof server (`httpClientProofProvider`) when
- *                       `VITE_PROOF_MODE=http`.
+ * Key differences from the Node-side providers in src/deploy.ts:
+ *   - private state  -> levelPrivateStateProvider (IndexedDB via level)
+ *   - public data    -> indexerPublicDataProvider with native WebSocket (see note)
+ *   - zk artifacts   -> FetchZkConfigProvider with absolute URL + bound fetch (see note)
+ *   - proofs         -> dappConnectorProofProvider (in-wallet proving via Lace)
+ *                       with fallback to httpClientProofProvider for wallets
+ *                       that do not expose a proverServerUri (e.g. 1AM)
+ *
+ * WebSocket note: indexerPublicDataProvider defaults webSocketImpl to
+ * ws.WebSocket from isomorphic-ws. The browser build of isomorphic-ws exports
+ * no named WebSocket binding, so the default resolves to undefined, and every
+ * subscription (which is how the SDK waits for a transaction to be included)
+ * fails silently. Passing the browser's native WebSocket fixes this.
+ *
+ * FetchZkConfigProvider note: the constructor calls new URL(baseURL) internally.
+ * A root-relative path like '/zk' throws "Failed to construct URL: Invalid URL"
+ * because it is not an absolute URL. Must use window.location.origin to build
+ * an absolute base. The second argument (fetchFunc) must be window.fetch.bind(window)
+ * because the provider calls this.fetchFunc(...) internally; a detached fetch
+ * reference throws "Illegal invocation" in browsers.
  */
 import { levelPrivateStateProvider } from '@midnight-ntwrk/midnight-js-level-private-state-provider';
 import { indexerPublicDataProvider } from '@midnight-ntwrk/midnight-js-indexer-public-data-provider';
@@ -23,26 +35,37 @@ import { createWalletProviders } from './wallet-provider';
 import {
   INDEXER_URL,
   INDEXER_WS_URL,
-  ZK_BASE_URL,
   PROOF_SERVER_URL,
   PROOF_MODE,
   PRIVATE_STATE_PASSWORD,
 } from '../config';
 
 /**
- * Build the full provider set for a connected Lace wallet.
+ * The ZK artifacts (zkir + proving/verifying keys) are served from /zk by Vite
+ * (via public/zk, populated by npm run prepare:contract before dev/build).
+ * Must be an absolute URL: FetchZkConfigProvider calls new URL(baseURL) and
+ * rejects root-relative paths.
+ */
+function getZkBaseUrl(): string {
+  return `${window.location.origin}/zk`;
+}
+
+/**
+ * Build the full provider set for a connected Midnight wallet.
  *
- * @param api The connected Lace session.
- * @param snapshot Keys + balances captured at connect time (required by the
- *   wallet provider bridge, see `lib/wallet-provider.ts`).
+ * @param api The connected wallet session (Lace or 1AM).
+ * @param snapshot Keys + balances captured at connect time.
  */
 export async function createProviders(
   api: ConnectedAPI,
   snapshot: WalletSnapshot,
 ): Promise<MidnightProviders> {
-  // ZK artifacts (zkir + proving/verifying keys) are copied into
-  // `public/zk` by `npm run prepare:contract` (runs before dev/build).
-  const zkConfigProvider = new FetchZkConfigProvider(ZK_BASE_URL);
+  // Absolute URL required. window.fetch.bind(window) required to preserve
+  // the this-binding when the provider calls this.fetchFunc(...) internally.
+  const zkConfigProvider = new FetchZkConfigProvider(
+    getZkBaseUrl(),
+    window.fetch.bind(window),
+  );
 
   const { walletProvider, midnightProvider } = createWalletProviders(api, snapshot);
 
@@ -91,7 +114,14 @@ export async function createProviders(
       accountId: snapshot.address,
       privateStoragePasswordProvider: () => PRIVATE_STATE_PASSWORD,
     }),
-    publicDataProvider: indexerPublicDataProvider(INDEXER_URL, INDEXER_WS_URL),
+    // Third argument: browser's native WebSocket. Required because isomorphic-ws
+    // browser build exports no named WebSocket binding, so the default
+    // webSocketImpl is undefined, and all transaction-inclusion subscriptions fail.
+    publicDataProvider: indexerPublicDataProvider(
+      INDEXER_URL,
+      INDEXER_WS_URL,
+      WebSocket as unknown as NonNullable<Parameters<typeof indexerPublicDataProvider>[2]>,
+    ),
     zkConfigProvider,
     proofProvider,
     walletProvider,
